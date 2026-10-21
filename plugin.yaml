@@ -1,0 +1,11 @@
+name: zoth
+version: 1.0.0
+description: Zoth Studio tool catalog and ZOTHOS local-service tools for Hermes (search and open Studio tools, probe Zoth services on 127.0.0.1, pull published NullAITech tools)
+author: Neal Frazier (NullAITech)
+requires_hermes: ">=0.21.5"
+provides_tools:
+  - zoth_studio_search
+  - zoth_studio_tool
+  - zoth_status
+  - zoth_pull_tool
+provides_hooks: []
