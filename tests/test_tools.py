@@ -46,3 +46,23 @@ def test_status_detects_local_service(monkeypatch):
 def test_pull_rejects_unpublished(tmp_path):
     r = json.loads(tools.pull_tool({"tool_id": "zoth-civilization", "dest_dir": str(tmp_path)}))
     assert "error" in r
+
+
+def test_error_shapes():
+    r = json.loads(tools.studio_tool({"tool_id": "regex-droid"}))
+    assert r["ok"] is False and r["error"]["code"] == "unknown_tool"
+    assert "regex-droid-builder" in r["error"]["did_you_mean"]
+    assert json.loads(tools.studio_search({"limit": "x"}))["error"]["code"] == "bad_argument"
+    assert json.loads(tools.studio_search({"category": "nope"}))["error"]["code"] == "unknown_category"
+
+
+def test_bundled_catalog_has_no_personal_data():
+    import re
+    text = (ROOT / "data" / "studio_tools.json").read_text()
+    assert not re.search(r"\+?1?[ (.-]*\d{3}[ ).-]*\d{3}[ .-]\d{4}", text)
+    assert not re.search(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", text)
+    assert not re.search(r"/(home|media|Users)/", text)
+    assert not re.search(r"ghp_|github_pat_|sk-[A-Za-z0-9]{16}|AKIA[0-9A-Z]{16}|xox[bp]-", text)
+    rows = json.loads(text)
+    assert len({r["id"] for r in rows}) == len(rows)
+    assert all(r["studio_url"].startswith("https://zoth.nullai.tech/tools/") for r in rows)

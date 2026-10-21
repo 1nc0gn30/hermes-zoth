@@ -3,18 +3,20 @@
 STUDIO_SEARCH = {
     "name": "zoth_studio_search",
     "description": (
-        "Search the Zoth Studio tool catalog (https://zoth.nullai.tech, by NullAITech). "
-        "Returns matching tools with their Studio page URL, GitHub source and category. "
-        "Use when the user wants a Zoth Studio tool (regex builder, JWT inspector, PWA manifest "
-        "builder, cron studio, security sentinels, POD/e-commerce connectors, etc.). "
-        "Empty query lists every tool."
+        "Find tools in Zoth Studio (https://zoth.nullai.tech), a free collection of in-browser "
+        "developer, security, agent-safety and creator tools by NullAITech. Use this first whenever "
+        "the user needs a utility such as a regex builder, JWT decoder, PWA manifest builder, cron "
+        "expression helper, robots.txt auditor, prompt-injection firewall or POD/e-commerce connector. "
+        "Offline: searches a bundled catalog. Returns id, name, category, description, the Studio "
+        "page URL and the GitHub source. An empty query lists everything; results are ranked by "
+        "keyword matches."
     ),
     "parameters": {
         "type": "object",
         "properties": {
             "query": {"type": "string", "description": "Words to match against name, id, category and description."},
             "category": {"type": "string", "description": "Optional exact category filter, e.g. 'Security'."},
-            "limit": {"type": "integer", "description": "Max results (default 10, max 62)."},
+            "limit": {"type": "integer", "description": "Max results (default 10, max 100)."},
         },
         "required": [],
     },
@@ -23,9 +25,10 @@ STUDIO_SEARCH = {
 STUDIO_TOOL = {
     "name": "zoth_studio_tool",
     "description": (
-        "Get one Zoth Studio tool by id: its in-browser Studio URL to hand the user, GitHub repo, "
-        "and the `npx @nullaitech/zoth pull` command. Set check_live=true to confirm the page "
-        "answers on zoth.nullai.tech."
+        "Get the details for one Zoth Studio tool by id (from zoth_studio_search): the Studio URL "
+        "the user can open to use it in their browser, its GitHub repo, and the "
+        "`npx @nullaitech/zoth pull <id>` command to get it locally. check_live=true makes one "
+        "HTTPS request to confirm the page is up. Unknown ids return did_you_mean suggestions."
     ),
     "parameters": {
         "type": "object",
@@ -40,9 +43,11 @@ STUDIO_TOOL = {
 STATUS = {
     "name": "zoth_status",
     "description": (
-        "Probe local Zoth / ZOTHOS services on 127.0.0.1 (memory daemon, agent bridge, vault, "
-        "agent sentinels, Zoth Studio UI on :3000, Ollama with its local models) and report "
-        "which are up. Loopback only; nothing leaves the machine."
+        "Check which Zoth services are running on this machine (ZOTHOS or any box with Zoth "
+        "installed): Zoth Studio UI (:3000), neuro memory daemon (:8094), agent egress / mock / "
+        "prompt-firewall / flight-recorder / capsule / policy services (:8095-8106), agent bridge "
+        "(:8102), vault (:8787), WebGen (:5173) and Ollama (:11434, with installed model names). "
+        "Read-only and loopback-only; use it before telling the user a local Zoth service is available."
     ),
     "parameters": {"type": "object", "properties": {}, "required": []},
 }
@@ -50,8 +55,10 @@ STATUS = {
 PULL_TOOL = {
     "name": "zoth_pull_tool",
     "description": (
-        "git clone (shallow) one published Zoth/NullAITech tool repo from the catalog into a local "
-        "directory, or fast-forward it if already cloned. Only catalog repos on github.com are allowed."
+        "Download the source of one published Zoth Studio tool: shallow `git clone` from github.com "
+        "into <dest_dir>/<repo> (default ./tools), or `git pull --ff-only` if it is already there. "
+        "Only repos listed in the catalog are allowed, and existing non-git folders are never "
+        "overwritten. Use when the user wants to run or modify a tool locally."
     ),
     "parameters": {
         "type": "object",

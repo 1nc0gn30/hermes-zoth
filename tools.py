@@ -1,6 +1,9 @@
 """Handlers for the Zoth plugin. Each returns a JSON string and never raises."""
 
 import json
+import os
+import re
+import shutil
 import socket
 import subprocess
 import urllib.error
@@ -28,11 +31,24 @@ SERVICES = [
 ]
 
 
+def _err(code, message, **extra):
+    return json.dumps({"ok": False, "error": {"code": code, "message": message, **extra}})
+
+
 def _tools():
     global _catalog
     if _catalog is None:
-        _catalog = json.loads(_CATALOG_PATH.read_text(encoding="utf-8"))
+        data = json.loads(_CATALOG_PATH.read_text(encoding="utf-8"))
+        if not isinstance(data, list):
+            raise ValueError("bundled catalog is not a list")
+        _catalog = data
     return _catalog
+
+
+def _suggest(tool_id):
+    import difflib
+    ids = [t["id"] for t in _tools()]
+    return difflib.get_close_matches((tool_id or "").lower(), ids, n=3, cutoff=0.4)
 
 
 def _find(tool_id):
@@ -47,7 +63,10 @@ def studio_search(args: dict, **kwargs) -> str:
     try:
         q = str(args.get("query") or "").lower().split()
         cat = str(args.get("category") or "").strip().lower()
-        limit = max(1, min(int(args.get("limit") or 10), 62))
+        try:
+            limit = max(1, min(int(args.get("limit") or 10), 100))
+        except (TypeError, ValueError):
+            return _err("bad_argument", "limit must be an integer")
         hits = []
         for t in _tools():
             if cat and t["category"].lower() != cat:
@@ -59,17 +78,22 @@ def studio_search(args: dict, **kwargs) -> str:
         hits.sort(key=lambda h: -h[0])
         out = [{k: t[k] for k in ("id", "name", "category", "description", "studio_url", "github", "published")} for _, t in hits[:limit]]
         cats = sorted({t["category"] for t in _tools()})
-        return json.dumps({"count": len(hits), "results": out, "categories": cats})
+        if cat and not any(c.lower() == cat for c in cats):
+            return _err("unknown_category", f"no category {args.get('category')!r}", categories=cats)
+        return json.dumps({"ok": True, "count": len(hits), "results": out, "categories": cats})
+    except (OSError, ValueError) as e:
+        return _err("catalog_unavailable", f"could not read bundled catalog: {e}")
     except Exception as e:  # noqa: BLE001
-        return json.dumps({"error": f"search failed: {e}"})
+        return _err("internal", f"search failed: {e}")
 
 
 def studio_tool(args: dict, **kwargs) -> str:
     try:
         t = _find(args.get("tool_id"))
         if not t:
-            return json.dumps({"error": f"unknown tool id {args.get('tool_id')!r}; use zoth_studio_search"})
-        res = dict(t)
+            return _err("unknown_tool", f"unknown tool id {args.get('tool_id')!r}; use zoth_studio_search",
+                        did_you_mean=_suggest(args.get("tool_id")))
+        res = {"ok": True, **t}
         res["pull_command"] = f"npx @nullaitech/zoth pull {t['id']}" if t["published"] else None
         if args.get("check_live"):
             try:
@@ -82,7 +106,7 @@ def studio_tool(args: dict, **kwargs) -> str:
                 res["live_status"] = f"unreachable: {e}"
         return json.dumps(res)
     except Exception as e:  # noqa: BLE001
-        return json.dumps({"error": str(e)})
+        return _err("internal", str(e))
 
 
 def _probe(port, path):
@@ -113,30 +137,46 @@ def status(args: dict, **kwargs) -> str:
             if name == "Ollama" and up and isinstance(body, dict):
                 row["models"] = [m.get("name") for m in body.get("models", [])]
             rows.append(row)
-        return json.dumps({"host": "127.0.0.1", "up": sum(r["up"] for r in rows), "services": rows,
-                           "kvm": Path("/dev/kvm").exists()})
+        return json.dumps({"ok": True, "host": "127.0.0.1", "up": sum(r["up"] for r in rows), "services": rows,
+                           "kvm": Path("/dev/kvm").exists(),
+                           "hint": None if any(r["up"] for r in rows) else
+                           "Nothing is running. Start Zoth Studio with `npx @nullaitech/zoth studio`."})
     except Exception as e:  # noqa: BLE001
-        return json.dumps({"error": str(e)})
+        return _err("internal", str(e))
 
 
 def pull_tool(args: dict, **kwargs) -> str:
     try:
         t = _find(args.get("tool_id"))
         if not t:
-            return json.dumps({"error": f"unknown tool id {args.get('tool_id')!r}"})
+            return _err("unknown_tool", f"unknown tool id {args.get('tool_id')!r}",
+                        did_you_mean=_suggest(args.get("tool_id")))
         if not t["published"] or not t["github"].startswith("https://github.com/"):
-            return json.dumps({"error": f"{t['id']} has no published GitHub repo"})
+            return _err("not_published", f"{t['id']} has no public GitHub repo; use its Studio page instead",
+                        studio_url=t["studio_url"])
+        if shutil.which("git") is None:
+            return _err("git_missing", "git is not installed or not on PATH")
         repo = t["github"].rstrip("/").split("/")[-1]
-        dest = Path(args.get("dest_dir") or "tools").expanduser().resolve() / repo
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", repo):
+            return _err("bad_repo", f"unexpected repo name {repo!r}")
+        dest = Path(str(args.get("dest_dir") or "tools")).expanduser().resolve() / repo
         if (dest / ".git").exists():
             cmd = ["git", "-C", str(dest), "pull", "--ff-only"]
         elif dest.exists():
-            return json.dumps({"error": f"{dest} exists and is not a git checkout; refusing to overwrite"})
+            return _err("dest_exists", f"{dest} exists and is not a git checkout; refusing to overwrite")
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
             cmd = ["git", "clone", "--depth", "1", t["github"] + ".git", str(dest)]
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-        return json.dumps({"ok": p.returncode == 0, "path": str(dest), "command": " ".join(cmd),
-                           "output": (p.stdout + p.stderr)[-2000:]})
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
+        except subprocess.TimeoutExpired:
+            return _err("timeout", "git took longer than 180 s", command=" ".join(cmd))
+        out = (p.stdout + p.stderr)[-2000:]
+        if p.returncode != 0:
+            return _err("git_failed", f"git exited {p.returncode}", command=" ".join(cmd), output=out)
+        return json.dumps({"ok": True, "path": str(dest), "command": " ".join(cmd), "output": out})
+    except PermissionError as e:
+        return _err("permission_denied", str(e))
     except Exception as e:  # noqa: BLE001
-        return json.dumps({"error": str(e)})
+        return _err("internal", str(e))
