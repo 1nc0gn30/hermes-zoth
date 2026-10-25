@@ -618,5 +618,35 @@
   "github": "https://github.com/LaurieWired/GhidraMCP",
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/ghidra-mcp-bridge/"
+ },
+ {
+  "id": "zoth-ascii-magic",
+  "name": "Zoth ASCII Magic Studio",
+  "category": "Media & 3D",
+  "description": "100% client-side Image/Video/3D-to-ASCII & Sub-Pixel Unicode Braille studio with Sobel directional edge detection (/\\|-), interactive 2D point relighting, CRT phosphor bloom, and 24-bit TrueColor ANSI/HTML/SVG exports.",
+  "version": "2.6.0",
+  "github": "https://github.com/1nc0gn30/zoth-ascii-magic",
+  "published": true,
+  "studio_url": "https://zoth.nullai.tech/tools/zoth-ascii-magic/"
+ },
+ {
+  "id": "yara-sigma-forge",
+  "name": "YARA-X & Sigma Threat Rule Forge",
+  "category": "Security & Recon",
+  "description": "100% client-side YARA-X & Sigma threat detection compiler with 60fps byte-offset entropy radar, CVE-2024-4577 PHP-CGI / ELF64 memfd / AI Agent exfil signatures, and MITRE ATT&CK mapping.",
+  "version": "3.2.0",
+  "github": "https://github.com/NullAITech/zoth-os",
+  "published": true,
+  "studio_url": "https://zoth.nullai.tech/tools/yara-sigma-forge/"
+ },
+ {
+  "id": "reality-shader-forge",
+  "name": "Zoth Reality Shader & Theme Forge",
+  "category": "Media & 3D",
+  "description": "Interactive 60fps Reality Switch shader synthesizer and ZothOS desktop theme compiler. Customize the 5 Zoth Realities, preview Zoth Bot companions, and export KDE Plasma .colors, Alacritty .toml, and CSS tokens.",
+  "version": "3.2.0",
+  "github": "https://github.com/NullAITech/zoth-studio-v2",
+  "published": true,
+  "studio_url": "https://zoth.nullai.tech/tools/reality-shader-forge/"
  }
 ]
