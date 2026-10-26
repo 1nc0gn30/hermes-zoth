@@ -1,5 +1,5 @@
 name: zoth
-version: 1.1.2
+version: 1.1.3
 description: Zoth Studio tool catalog and ZOTHOS local-service tools for Hermes (search and open Studio tools, probe Zoth services on 127.0.0.1, pull published NullAITech tools)
 author: Neal Frazier (NullAITech)
 requires_hermes: ">=0.21.5"
