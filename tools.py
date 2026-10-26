@@ -6,6 +6,7 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -145,6 +146,82 @@ def status(args: dict, **kwargs) -> str:
         return _err("internal", str(e))
 
 
+def _fallback_hermes_home() -> Path:
+    """Used only when this plugin is imported outside Hermes (unit tests)."""
+    raw = os.environ.get("HERMES_HOME", "").strip()
+    if raw:
+        return Path(os.path.expanduser(os.path.expandvars(raw)))
+    if sys.platform == "win32":
+        local = os.environ.get("LOCALAPPDATA", "").strip()
+        base = Path(local) if local else Path.home() / "AppData" / "Local"
+        return base / "hermes"
+    return Path.home() / ".hermes"
+
+
+def _hermes_home() -> Path:
+    """Active Hermes home: ``get_hermes_home()`` when Hermes is installed."""
+    try:
+        from hermes_constants import get_hermes_home
+    except ImportError:
+        return _fallback_hermes_home()
+    return Path(get_hermes_home()).expanduser()
+
+
+def _clone_root() -> Path:
+    """Only tree ``zoth_pull_tool`` may write: ``<HERMES_HOME>/plugin-data/zoth``."""
+    return (_hermes_home() / "plugin-data" / "zoth").resolve()
+
+
+def _strict_child(path: Path, root: Path) -> bool:
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        return False
+    return bool(rel.parts)
+
+
+def _clone_dest_allowed(dest: Path, root: Path, hermes: Path) -> bool:
+    """True only when ``dest`` is inside the clone root and not under skills/plugins.
+
+    The skills/plugins check still applies when ``plugin-data/zoth`` itself is a
+    symlink into one of those directories: ``resolve()`` would otherwise treat
+    that target as the allowed root.
+    """
+    if not _strict_child(dest, root):
+        return False
+    try:
+        top = dest.relative_to(hermes).parts[0]
+    except (ValueError, IndexError):
+        return True
+    return top not in {"skills", "plugins"}
+
+
+def _resolve_clone_dest(dest_dir, repo: str) -> Path:
+    """Resolve ``dest_dir / repo`` under the clone root, never against the process cwd.
+
+    Relative values (including the default ``tools``) join onto
+    ``<HERMES_HOME>/plugin-data/zoth``. Absolute values are kept only for the
+    containment check that follows.
+    """
+    root = _clone_root()
+    raw = dest_dir
+    if raw is None or str(raw).strip() == "":
+        raw = "tools"
+    candidate = Path(os.path.expanduser(os.path.expandvars(str(raw).strip())))
+    parent = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    return (parent / repo).resolve()
+
+
+def _dest_refused(root: Path) -> str:
+    return _err(
+        "dest_outside_root",
+        "refusing to clone outside the zoth plugin data directory "
+        f"({root}). Pass a relative dest_dir such as 'tools', or an absolute path inside that directory. "
+        "Paths under the Hermes skills or plugins directories are not allowed.",
+        root=str(root),
+    )
+
+
 def pull_tool(args: dict, **kwargs) -> str:
     try:
         t = _find(args.get("tool_id"))
@@ -154,12 +231,16 @@ def pull_tool(args: dict, **kwargs) -> str:
         if not t["published"] or not t["github"].startswith("https://github.com/"):
             return _err("not_published", f"{t['id']} has no public GitHub repo; use its Studio page instead",
                         studio_url=t["studio_url"])
+        repo = t["github"].rstrip("/").split("/")[-1]
+        if repo in {".", ".."} or not re.fullmatch(r"[A-Za-z0-9._-]+", repo):
+            return _err("bad_repo", f"unexpected repo name {repo!r}")
+        root = _clone_root()
+        hermes = _hermes_home().resolve()
+        dest = _resolve_clone_dest(args.get("dest_dir"), repo)
+        if not _clone_dest_allowed(dest, root, hermes):
+            return _dest_refused(root)
         if shutil.which("git") is None:
             return _err("git_missing", "git is not installed or not on PATH")
-        repo = t["github"].rstrip("/").split("/")[-1]
-        if not re.fullmatch(r"[A-Za-z0-9._-]+", repo):
-            return _err("bad_repo", f"unexpected repo name {repo!r}")
-        dest = Path(str(args.get("dest_dir") or "tools")).expanduser().resolve() / repo
         if (dest / ".git").exists():
             cmd = ["git", "-C", str(dest), "pull", "--ff-only"]
         elif dest.exists():

@@ -11,7 +11,7 @@ Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.
 ```bash
 hermes plugins install https://github.com/1nc0gn30/hermes-zoth
 hermes plugins enable zoth
-hermes plugins list | grep zoth      # ✓ zoth 1.1.1 (4 tools)
+hermes plugins list | grep zoth      # ✓ zoth 1.1.2 (4 tools)
 ```
 
 Or copy the folder to `~/.hermes/plugins/zoth/` and run `hermes plugins enable zoth`.
@@ -25,7 +25,7 @@ Needs Hermes `>=0.21.5`. No API keys, no Python dependencies. `zoth_pull_tool` n
 | `zoth_studio_search` | Find a Studio tool by keywords or category. Returns its Studio URL and GitHub source. | none (bundled catalog) |
 | `zoth_studio_tool` | Details for one tool id: Studio URL, repo, `npx @nullaitech/zoth pull` command. `check_live: true` confirms the page is up. | optional HTTPS GET to zoth.nullai.tech |
 | `zoth_status` | Which Zoth services are up on this machine: Studio UI :3000, memory :8094, agent services :8095-8106, bridge :8102, vault :8787, WebGen :5173, Ollama :11434 (with model names). | 127.0.0.1 only |
-| `zoth_pull_tool` | Shallow-clone one published tool repo into `./tools/<repo>` (or `git pull --ff-only` if present). | github.com via `git` |
+| `zoth_pull_tool` | Shallow-clone one published tool repo into `<HERMES_HOME>/plugin-data/zoth/tools/<repo>` (or `git pull --ff-only` if present). | github.com via `git` |
 
 Skill: `skill_view("zoth:zoth-studio")` walks the agent through picking a tool, giving the user its link, and checking local services.
 
@@ -37,7 +37,7 @@ Prompts that work well:
 Find me a Zoth tool for building a regex and give me the link.
 I need to decode a JWT. Is there a Zoth Studio tool for that?
 Which Zoth services are running on this box, and which Ollama models do I have?
-Pull the PWA manifest builder source into ~/src.
+Pull the PWA manifest builder source.
 ```
 
 ### What the agent sees (text screenshots)
@@ -100,7 +100,7 @@ In the CLI banner:
 
 ### Errors
 
-Every tool returns JSON and never raises. Failures look like `{"ok": false, "error": {"code": ..., "message": ...}}`. Codes: `unknown_tool` (with `did_you_mean`), `unknown_category`, `bad_argument`, `not_published`, `git_missing`, `dest_exists`, `git_failed`, `timeout`, `permission_denied`, `catalog_unavailable`, `internal`.
+Every tool returns JSON and never raises. Failures look like `{"ok": false, "error": {"code": ..., "message": ...}}`. Codes: `unknown_tool` (with `did_you_mean`), `unknown_category`, `bad_argument`, `not_published`, `git_missing`, `dest_outside_root`, `dest_exists`, `git_failed`, `timeout`, `permission_denied`, `catalog_unavailable`, `internal`.
 
 ## Keeping the catalog current
 
@@ -117,7 +117,7 @@ The script keeps only public fields and checks that every Studio page answers wi
 
 - **Network:** `zoth_studio_tool` with `check_live` does one HTTPS GET to `zoth.nullai.tech`. `zoth_pull_tool` runs `git` against `github.com`. `zoth_status` connects only to `127.0.0.1`. No telemetry.
 - **Shell:** `zoth_pull_tool` runs `git clone --depth 1` / `git pull --ff-only` as a subprocess with a fixed argv (no shell), only for catalog repos, with `GIT_TERMINAL_PROMPT=0`.
-- **Files:** writes only into the clone destination you choose. Reads nothing outside the plugin directory.
+- **Files:** `zoth_pull_tool` writes only under `<HERMES_HOME>/plugin-data/zoth/` (default `.../tools/<repo>`). A relative `dest_dir` is resolved against that directory, not the process working directory. Absolute paths, `..`, and symlinks that resolve anywhere else — including `~/.hermes/skills` and `~/.hermes/plugins` — are refused (`dest_outside_root`). Reads nothing outside the plugin directory.
 - No credentials, no background processes, no self-updating code.
 
 ## Development

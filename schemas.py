@@ -56,7 +56,10 @@ PULL_TOOL = {
     "name": "zoth_pull_tool",
     "description": (
         "Download the source of one published Zoth Studio tool: shallow `git clone` from github.com "
-        "into <dest_dir>/<repo> (default ./tools), or `git pull --ff-only` if it is already there. "
+        "into <HERMES_HOME>/plugin-data/zoth/<dest_dir>/<repo> (default dest_dir is tools), or "
+        "`git pull --ff-only` if that checkout is already there. dest_dir is resolved under that "
+        "plugin data directory, not the process working directory. Absolute paths and `..` segments "
+        "that resolve anywhere else — including ~/.hermes/skills and ~/.hermes/plugins — are refused. "
         "Only repos listed in the catalog are allowed, and existing non-git folders are never "
         "overwritten. Use when the user wants to run or modify a tool locally."
     ),
@@ -64,7 +67,14 @@ PULL_TOOL = {
         "type": "object",
         "properties": {
             "tool_id": {"type": "string", "description": "Tool id from zoth_studio_search."},
-            "dest_dir": {"type": "string", "description": "Parent directory (default ./tools). The repo goes in <dest_dir>/<repo>."},
+            "dest_dir": {
+                "type": "string",
+                "description": (
+                    "Directory under HERMES_HOME/plugin-data/zoth (default tools). "
+                    "The repo is cloned to <that directory>/<repo>. "
+                    "Absolute paths are accepted only when they resolve inside the same directory."
+                ),
+            },
         },
         "required": ["tool_id"],
     },
