@@ -15,8 +15,8 @@ STUDIO_SEARCH = {
         "type": "object",
         "properties": {
             "query": {"type": "string", "description": "Words to match against name, id, category and description."},
-            "category": {"type": "string", "description": "Optional exact category filter, e.g. 'Security'."},
-            "limit": {"type": "integer", "description": "Max results (default 10, max 100)."},
+            "category": {"type": "string", "description": "Optional category filter, e.g. 'Security & Recon' or family prefix 'security'. See returned categories list."},
+            "limit": {"type": "integer", "description": "Max results (default 10, min 1, max 100)."},
         },
         "required": [],
     },
@@ -44,9 +44,9 @@ STATUS = {
     "name": "zoth_status",
     "description": (
         "Check which Zoth services are running on this machine (ZOTHOS or any box with Zoth "
-        "installed): Zoth Studio UI (:3000), neuro memory daemon (:8094), agent egress / mock / "
-        "prompt-firewall / flight-recorder / capsule / policy services (:8095-8106), agent bridge "
-        "(:8102), vault (:8787), WebGen (:5173) and Ollama (:11434, with installed model names). "
+        "installed): Zoth Studio UI (:3000), neuro memory daemon (:8094), agent and security services "
+        "(:8095-8106, including bridge :8102), vault (:8787), WebGen (:5173) and Ollama (:11434, "
+        "with installed model names). up=true indicates a TCP connection was accepted on 127.0.0.1. "
         "Read-only and loopback-only; use it before telling the user a local Zoth service is available."
     ),
     "parameters": {"type": "object", "properties": {}, "required": []},
@@ -57,16 +57,16 @@ PULL_TOOL = {
     "description": (
         "Download the source of one published Zoth Studio tool: shallow `git clone` from github.com "
         "into <HERMES_HOME>/plugin-data/zoth/<dest_dir>/<repo> (default dest_dir is tools), or "
-        "`git pull --ff-only` if that checkout is already there. dest_dir is resolved under that "
-        "plugin data directory, not the process working directory. Absolute paths and `..` segments "
-        "that resolve anywhere else — including ~/.hermes/skills and ~/.hermes/plugins — are refused. "
-        "Only repos listed in the catalog are allowed, and existing non-git folders are never "
-        "overwritten. Use when the user wants to run or modify a tool locally."
+        "`git pull --ff-only` if that checkout is already there. Returns destination path and git commit SHA. "
+        "dest_dir is resolved under that plugin data directory, not the process working directory. "
+        "Absolute paths and `..` segments that resolve anywhere else — including ~/.hermes/skills and "
+        "~/.hermes/plugins — are refused. Only repos listed in the catalog are allowed, and existing "
+        "non-git folders are never overwritten. Use when the user wants to run or modify a tool locally."
     ),
     "parameters": {
         "type": "object",
         "properties": {
-            "tool_id": {"type": "string", "description": "Tool id from zoth_studio_search."},
+            "tool_id": {"type": "string", "description": "Tool id or friendly name from zoth_studio_search."},
             "dest_dir": {
                 "type": "string",
                 "description": (
@@ -74,6 +74,10 @@ PULL_TOOL = {
                     "The repo is cloned to <that directory>/<repo>. "
                     "Absolute paths are accepted only when they resolve inside the same directory."
                 ),
+            },
+            "ref": {
+                "type": "string",
+                "description": "Optional branch, tag, or commit SHA to checkout.",
             },
         },
         "required": ["tool_id"],

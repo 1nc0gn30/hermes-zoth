@@ -2,7 +2,7 @@
 
 **Zoth Studio + ZOTHOS for [Hermes Agent](https://github.com/NousResearch/hermes-agent).**
 
-Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.nullai.tech), a collection of 62 in-browser developer, security, agent-safety and creator tools, and with the local Zoth services that run on **ZOTHOS** ("Zoth O-S"), the Debian-based AI Linux distro, or on any machine with Zoth installed.
+Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.nullai.tech), a collection of 71 in-browser developer, security, agent-safety and creator tools (59 published standalone), and with the local Zoth services that run on **ZOTHOS** ("Zoth O-S"), the Debian-based AI Linux distro, or on any machine with Zoth installed.
 
 > Independent community plugin by Neal Frazier / NullAITech. Not affiliated with or endorsed by Nous Research.
 
@@ -24,7 +24,7 @@ Needs Hermes `>=0.21.5`. No API keys, no Python dependencies. `zoth_pull_tool` n
 | --- | --- | --- |
 | `zoth_studio_search` | Find a Studio tool by keywords or category. Returns its Studio URL and GitHub source. | none (bundled catalog) |
 | `zoth_studio_tool` | Details for one tool id: Studio URL, repo, `npx @nullaitech/zoth pull` command. `check_live: true` confirms the page is up. | optional HTTPS GET to zoth.nullai.tech |
-| `zoth_status` | Which Zoth services are up on this machine: Studio UI :3000, memory :8094, agent services :8095-8106, bridge :8102, vault :8787, WebGen :5173, Ollama :11434 (with model names). | 127.0.0.1 only |
+| `zoth_status` | Which Zoth services are up on this machine: Studio UI :3000, memory :8094, agent and security services :8095-8106 (including bridge :8102), vault :8787, WebGen :5173, Ollama :11434 (with model names). Note up=true indicates a TCP connection was accepted on 127.0.0.1. | 127.0.0.1 only |
 | `zoth_pull_tool` | Shallow-clone one published tool repo into `<HERMES_HOME>/plugin-data/zoth/tools/<repo>` (or `git pull --ff-only` if present). | github.com via `git` |
 
 Skill: `skill_view("zoth:zoth-studio")` walks the agent through picking a tool, giving the user its link, and checking local services.
@@ -70,7 +70,7 @@ Pull the PWA manifest builder source.
  "error": {
   "code": "unknown_tool",
   "message": "unknown tool id 'regex-droid'; use zoth_studio_search",
-  "did_you_mean": ["regex-droid-builder", "sovereign-agent-bridge", "agent-gods-eye"]
+  "did_you_mean": ["regex-droid-builder"]
  }
 }
 ```
@@ -100,7 +100,7 @@ In the CLI banner:
 
 ### Errors
 
-Every tool returns JSON and never raises. Failures look like `{"ok": false, "error": {"code": ..., "message": ...}}`. Codes: `unknown_tool` (with `did_you_mean`), `unknown_category`, `bad_argument`, `not_published`, `git_missing`, `dest_outside_root`, `dest_exists`, `git_failed`, `timeout`, `permission_denied`, `catalog_unavailable`, `internal`.
+Every tool returns JSON and never raises. Failures look like `{"ok": false, "error": {"code": ..., "message": ...}}`. Codes: `unknown_tool` (with `did_you_mean`), `unknown_category`, `bad_argument`, `not_published`, `bad_repo`, `git_missing`, `dest_outside_root`, `dest_exists`, `git_failed`, `timeout`, `permission_denied`, `catalog_unavailable`, `internal`.
 
 ## Keeping the catalog current
 

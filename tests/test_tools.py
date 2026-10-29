@@ -1,4 +1,4 @@
-import importlib.util, json, sys, threading
+import importlib.util, json, os, sys, threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
@@ -226,9 +226,146 @@ def test_pull_default_lands_under_plugin_data_root(tmp_path, monkeypatch):
 def test_error_shapes():
     r = json.loads(tools.studio_tool({"tool_id": "regex-droid"}))
     assert r["ok"] is False and r["error"]["code"] == "unknown_tool"
-    assert "regex-droid-builder" in r["error"]["did_you_mean"]
+    assert r["error"]["did_you_mean"] == ["regex-droid-builder"]
     assert json.loads(tools.studio_search({"limit": "x"}))["error"]["code"] == "bad_argument"
     assert json.loads(tools.studio_search({"category": "nope"}))["error"]["code"] == "unknown_category"
+
+
+def test_z01_category_filtering():
+    # Exact category filter
+    r1 = json.loads(tools.studio_search({"category": "Security & Recon"}))
+    assert r1["ok"] is True
+    assert r1["count"] == 9
+    assert all(t["category"] == "Security & Recon" for t in r1["results"])
+
+    # Family prefix filter: 'security' matches all 4 Security & * categories
+    r2 = json.loads(tools.studio_search({"category": "security"}))
+    assert r2["ok"] is True
+    assert r2["count"] > 9
+    assert all(t["category"].startswith("Security &") for t in r2["results"])
+
+    # Invalid category returns unknown_category with full list
+    r3 = json.loads(tools.studio_search({"category": "nope"}))
+    assert r3["ok"] is False
+    assert r3["error"]["code"] == "unknown_category"
+    assert "Security & Recon" in r3["error"]["categories"]
+
+
+def test_z02_limit_handling():
+    # limit=0 is clamped to 1 (not swallowed into 10)
+    r0 = json.loads(tools.studio_search({"limit": 0}))
+    assert r0["ok"] is True
+    assert len(r0["results"]) == 1
+
+    # limit=None / absent defaults to 10
+    r_def = json.loads(tools.studio_search({}))
+    assert r_def["ok"] is True
+    assert len(r_def["results"]) == 10
+
+    # invalid limit returns bad_argument
+    r_bad = json.loads(tools.studio_search({"limit": "invalid"}))
+    assert r_bad["ok"] is False
+    assert r_bad["error"]["code"] == "bad_argument"
+
+
+def test_z03_search_ranking_and_projection():
+    # Single term query
+    r_jwt = json.loads(tools.studio_search({"query": "jwt"}))
+    assert r_jwt["ok"] is True
+    assert r_jwt["results"][0]["id"] == "jwt-inspector-guard"
+    # Both version and score are projected
+    assert "version" in r_jwt["results"][0]
+    assert "score" in r_jwt["results"][0]
+    assert r_jwt["results"][0]["score"] > 0
+
+    # Multi-term query: AND logic filters unrelated single-term matches
+    r_rb = json.loads(tools.studio_search({"query": "regex builder"}))
+    assert r_rb["ok"] is True
+    assert r_rb["results"][0]["id"] == "regex-droid-builder"
+    # Ensure unrelated tools containing only 'builder' (like pwa-manifest-builder) without 'regex' are dropped
+    ids = [t["id"] for t in r_rb["results"]]
+    assert "pwa-manifest-builder" not in ids
+
+
+def test_z04_suggest_noise_reduction():
+    r = json.loads(tools.studio_tool({"tool_id": "regex-droid"}))
+    assert r["ok"] is False
+    assert r["error"]["code"] == "unknown_tool"
+    assert r["error"]["did_you_mean"] == ["regex-droid-builder"]
+
+
+def test_z05_friendly_name_resolution():
+    # studio_tool accepts exact human name
+    r = json.loads(tools.studio_tool({"tool_id": "JWT Inspector Guard"}))
+    assert r["ok"] is True
+    assert r["id"] == "jwt-inspector-guard"
+
+    # studio_tool handles None gracefully as <missing>
+    r_none = json.loads(tools.studio_tool({"tool_id": None}))
+    assert r_none["ok"] is False
+    assert "<missing>" in r_none["error"]["message"]
+
+
+def test_z07_services_port_coverage():
+    # Ports 8095-8106 must all be covered in SERVICES
+    ports = {port for _, port, _ in tools.SERVICES}
+    for p in range(8095, 8107):
+        assert p in ports, f"Port {p} missing from SERVICES"
+
+
+def test_z10_errors_documented_in_readme():
+    readme = (ROOT / "README.md").read_text()
+    for code in ("bad_repo", "unknown_tool", "unknown_category", "bad_argument", "not_published", "git_missing"):
+        assert code in readme
+
+
+def test_z11_pull_tool_git_commit_and_ref(tmp_path, monkeypatch):
+    hermes, _cwd = _hermes(tmp_path, monkeypatch)
+    captured = _capture_git(monkeypatch)
+    parent = hermes / "plugin-data" / "zoth" / "vendor"
+    dest = (parent / _REPO).resolve()
+
+    # Pre-create a git repo to test ref and rev-parse behavior
+    (dest / ".git").mkdir(parents=True)
+    real_sha = "a" * 40
+
+    def _mock_run(cmd, **kwargs):
+        captured["last_cmd"] = cmd
+        if "rev-parse" in cmd:
+            res = _GitResult(0)
+            res.stdout = real_sha + "\n"
+            return res
+        return _GitResult(0)
+
+    monkeypatch.setattr(tools.subprocess, "run", _mock_run)
+    r = json.loads(tools.pull_tool({"tool_id": _PUBLISHED, "dest_dir": str(parent), "ref": "v1.0.0"}))
+    assert r["ok"] is True
+    assert r["commit"] == real_sha
+    assert r["ref"] == "v1.0.0"
+
+
+def test_z12_catalog_cache_invalidation(tmp_path, monkeypatch):
+    test_catalog = tmp_path / "studio_tools.json"
+    test_catalog.write_text(json.dumps([{"id": "t1", "name": "Tool 1", "category": "Test", "description": "D1", "published": True, "github": "https://github.com/1/t1", "studio_url": "https://zoth.nullai.tech/tools/t1/", "version": "1.0.0"}]))
+    monkeypatch.setattr(tools, "_CATALOG_PATH", test_catalog)
+    monkeypatch.setattr(tools, "_catalog", None)
+
+    # First load
+    t = tools._tools()
+    assert len(t) == 1 and t[0]["id"] == "t1"
+
+    # Modify catalog file
+    test_catalog.write_text(json.dumps([
+        {"id": "t1", "name": "Tool 1", "category": "Test", "description": "D1", "published": True, "github": "https://github.com/1/t1", "studio_url": "https://zoth.nullai.tech/tools/t1/", "version": "1.0.0"},
+        {"id": "t2", "name": "Tool 2", "category": "Test", "description": "D2", "published": True, "github": "https://github.com/1/t2", "studio_url": "https://zoth.nullai.tech/tools/t2/", "version": "1.0.0"}
+    ]))
+    # Touch mtime to ensure change
+    os.utime(test_catalog, (test_catalog.stat().st_atime + 10, test_catalog.stat().st_mtime + 10))
+
+    # Next call should reload automatically without restarting process
+    t2 = tools._tools()
+    assert len(t2) == 2
+
 
 
 def test_bundled_catalog_has_no_personal_data():

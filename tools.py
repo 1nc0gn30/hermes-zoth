@@ -14,15 +14,22 @@ from pathlib import Path
 STUDIO_BASE = "https://zoth.nullai.tech"
 _CATALOG_PATH = Path(__file__).parent / "data" / "studio_tools.json"
 _catalog = None
+_catalog_mtime = 0
 
 # Loopback services documented in Zoth Studio's server/studio-api.mjs.
+# Covers UI :3000, memory :8094, the full :8095-8106 agent/security suite, vault :8787, WebGen :5173, and Ollama :11434.
 SERVICES = [
     ("Zoth Studio UI", 3000, "/"),
     ("Neuro memory daemon", 8094, "/health"),
     ("Agent egress sentinel", 8095, "/api/stats"),
+    ("AudioCipher stego engine", 8096, "/"),
     ("Agent mock twin", 8097, "/api/stats"),
     ("Agent prompt firewall", 8098, "/api/stats"),
+    ("Schema illustrator studio", 8099, "/"),
+    ("PWA manifest builder", 8100, "/"),
+    ("Regex droid builder", 8101, "/"),
     ("Sovereign agent bridge", 8102, "/api/health"),
+    ("Anderson security sentinel", 8103, "/"),
     ("Agent flight recorder", 8104, "/api/stats"),
     ("Agent capsule jail", 8105, "/api/stats"),
     ("Agent policy auditor", 8106, "/api/stats"),
@@ -37,50 +44,161 @@ def _err(code, message, **extra):
 
 
 def _tools():
-    global _catalog
-    if _catalog is None:
+    global _catalog, _catalog_mtime
+    try:
+        mtime = _CATALOG_PATH.stat().st_mtime
+    except OSError:
+        mtime = 0
+    if _catalog is None or mtime != _catalog_mtime:
         data = json.loads(_CATALOG_PATH.read_text(encoding="utf-8"))
         if not isinstance(data, list):
             raise ValueError("bundled catalog is not a list")
         _catalog = data
+        _catalog_mtime = mtime
     return _catalog
 
 
 def _suggest(tool_id):
     import difflib
-    ids = [t["id"] for t in _tools()]
-    return difflib.get_close_matches((tool_id or "").lower(), ids, n=3, cutoff=0.4)
+    raw = (tool_id or "").strip().lower()
+    if not raw:
+        return []
+    catalog = _tools()
+    ids = [t["id"] for t in catalog]
+
+    # 1. Prefer prefix matches on id (e.g. 'regex-droid' -> 'regex-droid-builder')
+    prefix = [t["id"] for t in catalog if t["id"].lower().startswith(raw)]
+    if prefix:
+        return prefix[:3]
+
+    # 2. Check friendly name substring matches
+    by_name = [t["id"] for t in catalog if raw in t["name"].lower()]
+    if by_name:
+        return by_name[:3]
+
+    # 3. Fall back to close string matches with stricter cutoff 0.6 (filters noise)
+    return difflib.get_close_matches(raw, ids, n=3, cutoff=0.6)
 
 
 def _find(tool_id):
-    tid = (tool_id or "").strip().lower()
+    if not tool_id:
+        return None
+    slug = str(tool_id).strip().lower()
+    # 1. Exact ID match (case-insensitive, whitespace-trimmed)
     for t in _tools():
-        if t["id"].lower() == tid:
+        if t["id"].lower() == slug:
+            return t
+    # 2. Fall back to friendly name match (e.g. 'JWT Inspector Guard' -> 'jwt-inspector-guard')
+    for t in _tools():
+        if t["name"].strip().lower() == slug:
             return t
     return None
 
 
+def _match_category(cat_filter: str, item_category: str) -> bool:
+    if not cat_filter:
+        return True
+    cf = cat_filter.strip().lower()
+    ic = item_category.strip().lower()
+    if cf == ic:
+        return True
+    # Family prefix match: e.g. "security" matches "Security & Recon", "Security & OpSec", etc.
+    if ic.startswith(cf + " &") or ic.startswith(cf + " "):
+        return True
+    return False
+
+
+def _score_tool(t: dict, query_words: list[str], raw_query: str) -> int:
+    if not query_words:
+        return 1
+
+    t_id = t["id"].lower()
+    t_name = t["name"].lower()
+    t_cat = t["category"].lower()
+    t_desc = t["description"].lower()
+
+    if raw_query == t_id:
+        return 1000
+
+    id_words = set(re.findall(r"[a-z0-9]+", t_id))
+    name_words = set(re.findall(r"[a-z0-9]+", t_name))
+    cat_words = set(re.findall(r"[a-z0-9]+", t_cat))
+    desc_words = set(re.findall(r"[a-z0-9]+", t_desc))
+    all_words = id_words | name_words | cat_words | desc_words
+
+    # Require all query terms to match at least one field (AND requirement)
+    for qw in query_words:
+        if qw not in all_words and qw not in t_id:
+            return 0
+
+    score = 0
+    if raw_query in t_id:
+        score += 200
+    if raw_query in t_name:
+        score += 100
+
+    for qw in query_words:
+        if qw == t_id:
+            score += 150
+        elif qw in id_words:
+            score += 80
+        elif qw in t_id:
+            score += 40
+
+        if qw in name_words:
+            score += 50
+        elif qw in t_name:
+            score += 25
+
+        if qw in cat_words:
+            score += 20
+
+        if qw in desc_words:
+            score += 5
+
+    return score
+
+
 def studio_search(args: dict, **kwargs) -> str:
     try:
-        q = str(args.get("query") or "").lower().split()
+        raw_q = str(args.get("query") or "").strip().lower()
+        q_words = re.findall(r"[a-z0-9]+", raw_q)
         cat = str(args.get("category") or "").strip().lower()
+        raw_limit = args.get("limit")
         try:
-            limit = max(1, min(int(args.get("limit") or 10), 100))
+            limit = 10 if raw_limit is None else max(1, min(int(raw_limit), 100))
         except (TypeError, ValueError):
             return _err("bad_argument", "limit must be an integer")
+
+        catalog = _tools()
+        cats = sorted({t["category"] for t in catalog})
+        if cat:
+            matching_cats = [c for c in cats if _match_category(cat, c)]
+            if not matching_cats:
+                return _err("unknown_category", f"no category {args.get('category')!r}", categories=cats)
+
         hits = []
-        for t in _tools():
-            if cat and t["category"].lower() != cat:
+        for t in catalog:
+            if cat and not _match_category(cat, t["category"]):
                 continue
-            hay = " ".join([t["id"], t["name"], t["category"], t["description"]]).lower()
-            score = sum(hay.count(w) for w in q) if q else 1
-            if score:
+            score = _score_tool(t, q_words, raw_q)
+            if score > 0:
                 hits.append((score, t))
         hits.sort(key=lambda h: -h[0])
-        out = [{k: t[k] for k in ("id", "name", "category", "description", "studio_url", "github", "published")} for _, t in hits[:limit]]
-        cats = sorted({t["category"] for t in _tools()})
-        if cat and not any(c.lower() == cat for c in cats):
-            return _err("unknown_category", f"no category {args.get('category')!r}", categories=cats)
+        out = [
+            {
+                "id": t["id"],
+                "name": t["name"],
+                "category": t["category"],
+                "description": t["description"],
+                "version": t.get("version", "1.0.0"),
+                "studio_url": t["studio_url"],
+                "github": t["github"],
+                "published": t["published"],
+                "score": score,
+            }
+            for score, t in hits[:limit]
+        ]
         return json.dumps({"ok": True, "count": len(hits), "results": out, "categories": cats})
     except (OSError, ValueError) as e:
         return _err("catalog_unavailable", f"could not read bundled catalog: {e}")
@@ -90,10 +208,15 @@ def studio_search(args: dict, **kwargs) -> str:
 
 def studio_tool(args: dict, **kwargs) -> str:
     try:
-        t = _find(args.get("tool_id"))
+        raw_id = args.get("tool_id")
+        t = _find(raw_id)
         if not t:
-            return _err("unknown_tool", f"unknown tool id {args.get('tool_id')!r}; use zoth_studio_search",
-                        did_you_mean=_suggest(args.get("tool_id")))
+            display_id = "<missing>" if raw_id is None else repr(raw_id)
+            return _err(
+                "unknown_tool",
+                f"unknown tool id {display_id}; use zoth_studio_search",
+                did_you_mean=_suggest(raw_id),
+            )
         res = {"ok": True, **t}
         res["pull_command"] = f"npx @nullaitech/zoth pull {t['id']}" if t["published"] else None
         if args.get("check_live"):
@@ -138,10 +261,15 @@ def status(args: dict, **kwargs) -> str:
             if name == "Ollama" and up and isinstance(body, dict):
                 row["models"] = [m.get("name") for m in body.get("models", [])]
             rows.append(row)
-        return json.dumps({"ok": True, "host": "127.0.0.1", "up": sum(r["up"] for r in rows), "services": rows,
-                           "kvm": Path("/dev/kvm").exists(),
-                           "hint": None if any(r["up"] for r in rows) else
-                           "Nothing is running. Start Zoth Studio with `npx @nullaitech/zoth studio`."})
+        return json.dumps({
+            "ok": True,
+            "host": "127.0.0.1",
+            "up": sum(r["up"] for r in rows),
+            "services": rows,
+            "kvm": Path("/dev/kvm").exists(),
+            "hint": None if any(r["up"] for r in rows) else
+            "Nothing is running. Start Zoth Studio with `npx @nullaitech/zoth studio`.",
+        })
     except Exception as e:  # noqa: BLE001
         return _err("internal", str(e))
 
@@ -181,12 +309,7 @@ def _strict_child(path: Path, root: Path) -> bool:
 
 
 def _clone_dest_allowed(dest: Path, root: Path, hermes: Path) -> bool:
-    """True only when ``dest`` is inside the clone root and not under skills/plugins.
-
-    The skills/plugins check still applies when ``plugin-data/zoth`` itself is a
-    symlink into one of those directories: ``resolve()`` would otherwise treat
-    that target as the allowed root.
-    """
+    """True only when ``dest`` is inside the clone root and not under skills/plugins."""
     if not _strict_child(dest, root):
         return False
     try:
@@ -197,12 +320,7 @@ def _clone_dest_allowed(dest: Path, root: Path, hermes: Path) -> bool:
 
 
 def _resolve_clone_dest(dest_dir, repo: str) -> Path:
-    """Resolve ``dest_dir / repo`` under the clone root, never against the process cwd.
-
-    Relative values (including the default ``tools``) join onto
-    ``<HERMES_HOME>/plugin-data/zoth``. Absolute values are kept only for the
-    containment check that follows.
-    """
+    """Resolve ``dest_dir / repo`` under the clone root, never against the process cwd."""
     root = _clone_root()
     raw = dest_dir
     if raw is None or str(raw).strip() == "":
@@ -224,16 +342,33 @@ def _dest_refused(root: Path) -> str:
 
 def pull_tool(args: dict, **kwargs) -> str:
     try:
-        t = _find(args.get("tool_id"))
+        raw_id = args.get("tool_id")
+        t = _find(raw_id)
         if not t:
-            return _err("unknown_tool", f"unknown tool id {args.get('tool_id')!r}",
-                        did_you_mean=_suggest(args.get("tool_id")))
+            display_id = "<missing>" if raw_id is None else repr(raw_id)
+            return _err(
+                "unknown_tool",
+                f"unknown tool id {display_id}; use zoth_studio_search",
+                did_you_mean=_suggest(raw_id),
+            )
         if not t["published"] or not t["github"].startswith("https://github.com/"):
-            return _err("not_published", f"{t['id']} has no public GitHub repo; use its Studio page instead",
-                        studio_url=t["studio_url"])
+            return _err(
+                "not_published",
+                f"{t['id']} has no public GitHub repo; use its Studio page instead",
+                studio_url=t["studio_url"],
+            )
         repo = t["github"].rstrip("/").split("/")[-1]
         if repo in {".", ".."} or not re.fullmatch(r"[A-Za-z0-9._-]+", repo):
             return _err("bad_repo", f"unexpected repo name {repo!r}")
+
+        ref = args.get("ref")
+        if ref is not None:
+            ref_str = str(ref).strip()
+            if not ref_str or not re.fullmatch(r"[A-Za-z0-9._/-]+", ref_str):
+                return _err("bad_argument", f"invalid ref {ref!r}")
+        else:
+            ref_str = None
+
         root = _clone_root()
         hermes = _hermes_home().resolve()
         dest = _resolve_clone_dest(args.get("dest_dir"), repo)
@@ -241,6 +376,8 @@ def pull_tool(args: dict, **kwargs) -> str:
             return _dest_refused(root)
         if shutil.which("git") is None:
             return _err("git_missing", "git is not installed or not on PATH")
+
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
         if (dest / ".git").exists():
             cmd = ["git", "-C", str(dest), "pull", "--ff-only"]
         elif dest.exists():
@@ -248,7 +385,7 @@ def pull_tool(args: dict, **kwargs) -> str:
         else:
             dest.parent.mkdir(parents=True, exist_ok=True)
             cmd = ["git", "clone", "--depth", "1", t["github"] + ".git", str(dest)]
-        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+
         try:
             p = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
         except subprocess.TimeoutExpired:
@@ -256,8 +393,34 @@ def pull_tool(args: dict, **kwargs) -> str:
         out = (p.stdout + p.stderr)[-2000:]
         if p.returncode != 0:
             return _err("git_failed", f"git exited {p.returncode}", command=" ".join(cmd), output=out)
-        return json.dumps({"ok": True, "path": str(dest), "command": " ".join(cmd), "output": out})
+
+        # Optional explicit ref checkout
+        if ref_str:
+            checkout_cmd = ["git", "-C", str(dest), "checkout", ref_str]
+            try:
+                p_ref = subprocess.run(checkout_cmd, capture_output=True, text=True, timeout=60, env=env)
+            except subprocess.TimeoutExpired:
+                return _err("timeout", f"git checkout {ref_str} took longer than 60 s", command=" ".join(checkout_cmd))
+            out += "\n" + (p_ref.stdout + p_ref.stderr)[-1000:]
+            if p_ref.returncode != 0:
+                return _err("git_failed", f"git checkout {ref_str} exited {p_ref.returncode}", command=" ".join(checkout_cmd), output=out)
+
+        # Inspect resulting commit SHA if destination is a git repo
+        commit_sha = None
+        if (dest / ".git").exists():
+            try:
+                p_sha = subprocess.run(["git", "-C", str(dest), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10, env=env)
+                if p_sha.returncode == 0 and len(p_sha.stdout.strip()) == 40:
+                    commit_sha = p_sha.stdout.strip()
+            except Exception:
+                pass
+
+        res = {"ok": True, "path": str(dest), "command": " ".join(cmd), "commit": commit_sha, "output": out}
+        if ref_str:
+            res["ref"] = ref_str
+        return json.dumps(res)
     except PermissionError as e:
         return _err("permission_denied", str(e))
     except Exception as e:  # noqa: BLE001
         return _err("internal", str(e))
+
