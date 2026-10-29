@@ -84,6 +84,8 @@ def _find(tool_id):
     if not tool_id:
         return None
     slug = str(tool_id).strip().lower()
+    if not slug:
+        return None
     # 1. Exact ID match (case-insensitive, whitespace-trimmed)
     for t in _tools():
         if t["id"].lower() == slug:
@@ -211,7 +213,7 @@ def studio_tool(args: dict, **kwargs) -> str:
         raw_id = args.get("tool_id")
         t = _find(raw_id)
         if not t:
-            display_id = "<missing>" if raw_id is None else repr(raw_id)
+            display_id = "<missing>" if not raw_id or not str(raw_id).strip() else repr(raw_id)
             return _err(
                 "unknown_tool",
                 f"unknown tool id {display_id}; use zoth_studio_search",
@@ -345,7 +347,7 @@ def pull_tool(args: dict, **kwargs) -> str:
         raw_id = args.get("tool_id")
         t = _find(raw_id)
         if not t:
-            display_id = "<missing>" if raw_id is None else repr(raw_id)
+            display_id = "<missing>" if not raw_id or not str(raw_id).strip() else repr(raw_id)
             return _err(
                 "unknown_tool",
                 f"unknown tool id {display_id}; use zoth_studio_search",
@@ -358,13 +360,13 @@ def pull_tool(args: dict, **kwargs) -> str:
                 studio_url=t["studio_url"],
             )
         repo = t["github"].rstrip("/").split("/")[-1]
-        if repo in {".", ".."} or not re.fullmatch(r"[A-Za-z0-9._-]+", repo):
+        if repo in {".", ".."} or repo.startswith("-") or not re.fullmatch(r"[A-Za-z0-9._-]+", repo):
             return _err("bad_repo", f"unexpected repo name {repo!r}")
 
         ref = args.get("ref")
         if ref is not None:
             ref_str = str(ref).strip()
-            if not ref_str or not re.fullmatch(r"[A-Za-z0-9._/-]+", ref_str):
+            if not ref_str or ref_str.startswith("-") or not re.fullmatch(r"[A-Za-z0-9._/-]+", ref_str):
                 return _err("bad_argument", f"invalid ref {ref!r}")
         else:
             ref_str = None
@@ -396,7 +398,7 @@ def pull_tool(args: dict, **kwargs) -> str:
 
         # Optional explicit ref checkout
         if ref_str:
-            checkout_cmd = ["git", "-C", str(dest), "checkout", ref_str]
+            checkout_cmd = ["git", "-C", str(dest), "checkout", "--", ref_str]
             try:
                 p_ref = subprocess.run(checkout_cmd, capture_output=True, text=True, timeout=60, env=env)
             except subprocess.TimeoutExpired:

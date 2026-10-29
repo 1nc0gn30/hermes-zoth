@@ -11,7 +11,7 @@ Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.
 ```bash
 hermes plugins install https://github.com/1nc0gn30/hermes-zoth
 hermes plugins enable zoth
-hermes plugins list | grep zoth      # ✓ zoth 1.1.3 (4 tools)
+hermes plugins list | grep zoth      # ✓ zoth 1.1.4 (4 tools)
 ```
 
 Or copy the folder to `~/.hermes/plugins/zoth/` and run `hermes plugins enable zoth`.

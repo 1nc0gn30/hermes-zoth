@@ -300,10 +300,11 @@ def test_z05_friendly_name_resolution():
     assert r["ok"] is True
     assert r["id"] == "jwt-inspector-guard"
 
-    # studio_tool handles None gracefully as <missing>
-    r_none = json.loads(tools.studio_tool({"tool_id": None}))
-    assert r_none["ok"] is False
-    assert "<missing>" in r_none["error"]["message"]
+    # studio_tool handles None, empty string, and whitespace gracefully as <missing>
+    for empty_val in (None, "", "   "):
+        r_none = json.loads(tools.studio_tool({"tool_id": empty_val}))
+        assert r_none["ok"] is False
+        assert "<missing>" in r_none["error"]["message"]
 
 
 def test_z07_services_port_coverage():
@@ -329,8 +330,10 @@ def test_z11_pull_tool_git_commit_and_ref(tmp_path, monkeypatch):
     (dest / ".git").mkdir(parents=True)
     real_sha = "a" * 40
 
+    cmds = []
+
     def _mock_run(cmd, **kwargs):
-        captured["last_cmd"] = cmd
+        cmds.append(cmd)
         if "rev-parse" in cmd:
             res = _GitResult(0)
             res.stdout = real_sha + "\n"
@@ -342,6 +345,12 @@ def test_z11_pull_tool_git_commit_and_ref(tmp_path, monkeypatch):
     assert r["ok"] is True
     assert r["commit"] == real_sha
     assert r["ref"] == "v1.0.0"
+    assert any("checkout" in c and "--" in c for c in cmds)
+
+    # Ref starting with dash is rejected
+    r_bad_ref = json.loads(tools.pull_tool({"tool_id": _PUBLISHED, "dest_dir": str(parent), "ref": "-b"}))
+    assert r_bad_ref["ok"] is False
+    assert r_bad_ref["error"]["code"] == "bad_argument"
 
 
 def test_z12_catalog_cache_invalidation(tmp_path, monkeypatch):
