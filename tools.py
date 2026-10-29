@@ -8,7 +8,9 @@ import socket
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
 
 STUDIO_BASE = "https://zoth.nullai.tech"
@@ -37,6 +39,59 @@ SERVICES = [
     ("Zoth WebGen (Bolt.DIY)", 5173, "/"),
     ("Ollama", 11434, "/api/tags"),
 ]
+
+
+# Repos the plugin will clone. Both are Neal Frazier / NullAITech accounts.
+ALLOWED_OWNERS = {"nullaitech", "1nc0gn30"}
+# Repos that hold many tools; pulling one of these fetches the whole project.
+MONOREPOS = {"zoth-studio-v2", "zoth-os"}
+STATUS_TOTAL_TIMEOUT = 4.0
+PROBE_MAX_BYTES = 64 * 1024
+# Applied to every git call: no repo hooks, no fsmonitor, no file:// or ext:: transports.
+GIT_SAFE_CONFIG = [
+    "-c", "core.hooksPath=/dev/null",
+    "-c", "core.fsmonitor=false",
+    "-c", "protocol.file.allow=never",
+    "-c", "protocol.ext.allow=never",
+    "-c", "submodule.recurse=false",
+]
+_ENV_PASSTHROUGH = ("PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TMPDIR", "TEMP", "TMP",
+                    "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy",
+                    "SSL_CERT_FILE", "SSL_CERT_DIR", "GIT_SSL_CAINFO")
+_SHA_RE = re.compile(r"[0-9a-fA-F]{40}")
+
+
+def _source(t: dict) -> dict:
+    """Owner/repo facts for a catalog entry, so the agent can tell users where code comes from."""
+    gh = t.get("github") or ""
+    parts = gh.rstrip("/").split("/")
+    if not gh.startswith("https://github.com/") or len(parts) < 5:
+        return {"source_owner": None, "source_repo": None, "third_party": False, "monorepo": False}
+    owner, repo = parts[3], parts[4]
+    return {
+        "source_owner": owner,
+        "source_repo": repo,
+        "third_party": owner.lower() not in ALLOWED_OWNERS,
+        "monorepo": repo in MONOREPOS,
+    }
+
+
+def _pull_command(t: dict):
+    """`npx @nullaitech/zoth pull <repo>`; the CLI takes the repo name and lists NullAITech repos only."""
+    src = _source(t)
+    if not t.get("published") or (src["source_owner"] or "").lower() != "nullaitech":
+        return None
+    return f"npx @nullaitech/zoth pull {src['source_repo']}"
+
+
+class _SameHostRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if urllib.parse.urlsplit(newurl).netloc != urllib.parse.urlsplit(req.full_url).netloc:
+            raise urllib.error.URLError(f"refusing cross-host redirect to {newurl}")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_same_host_opener = urllib.request.build_opener(_SameHostRedirect)
 
 
 def _err(code, message, **extra):
@@ -197,6 +252,7 @@ def studio_search(args: dict, **kwargs) -> str:
                 "studio_url": t["studio_url"],
                 "github": t["github"],
                 "published": t["published"],
+                **_source(t),
                 "score": score,
             }
             for score, t in hits[:limit]
@@ -219,12 +275,12 @@ def studio_tool(args: dict, **kwargs) -> str:
                 f"unknown tool id {display_id}; use zoth_studio_search",
                 did_you_mean=_suggest(raw_id),
             )
-        res = {"ok": True, **t}
-        res["pull_command"] = f"npx @nullaitech/zoth pull {t['id']}" if t["published"] else None
+        res = {"ok": True, **t, **_source(t)}
+        res["pull_command"] = _pull_command(t)
         if args.get("check_live"):
             try:
                 req = urllib.request.Request(t["studio_url"], headers={"User-Agent": "hermes-zoth-plugin"})
-                with urllib.request.urlopen(req, timeout=8) as r:
+                with _same_host_opener.open(req, timeout=8) as r:
                     res["live_status"] = r.status
             except urllib.error.HTTPError as e:
                 res["live_status"] = e.code
@@ -243,25 +299,31 @@ def _probe(port, path):
         return False, None
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=1.5) as r:
-            body = r.read(200_000)
+            body = r.read(PROBE_MAX_BYTES)
         try:
             return True, json.loads(body)
         except ValueError:
             return True, None
-    except urllib.error.HTTPError:
-        return True, None
     except Exception:  # noqa: BLE001
         return True, None
 
 
 def status(args: dict, **kwargs) -> str:
     try:
+        pool = ThreadPoolExecutor(max_workers=len(SERVICES))
+        futures = [pool.submit(_probe, port, path) for _, port, path in SERVICES]
+        wait(futures, timeout=STATUS_TOTAL_TIMEOUT)
+        pool.shutdown(wait=False, cancel_futures=True)
         rows = []
-        for name, port, path in SERVICES:
-            up, body = _probe(port, path)
-            row = {"name": name, "port": port, "up": up}
+        for (name, port, _), f in zip(SERVICES, futures):
+            if f.done() and not f.cancelled() and f.exception() is None:
+                up, body = f.result()
+                row = {"name": name, "port": port, "up": up}
+            else:
+                up, body = False, None
+                row = {"name": name, "port": port, "up": False, "timed_out": True}
             if name == "Ollama" and up and isinstance(body, dict):
-                row["models"] = [m.get("name") for m in body.get("models", [])]
+                row["models"] = [m.get("name") for m in body.get("models", []) if isinstance(m, dict)]
             rows.append(row)
         return json.dumps({
             "ok": True,
@@ -342,6 +404,48 @@ def _dest_refused(root: Path) -> str:
     )
 
 
+def _git_env() -> dict:
+    env = {k: os.environ[k] for k in _ENV_PASSTHROUGH if k in os.environ}
+    env.update({"GIT_TERMINAL_PROMPT": "0", "GIT_CONFIG_NOSYSTEM": "1", "GIT_ASKPASS": "", "SSH_ASKPASS": ""})
+    return env
+
+
+def _repo_url(t: dict) -> str:
+    return t["github"].rstrip("/") + ".git"
+
+
+def _valid_ref(ref: str) -> bool:
+    return (
+        bool(ref)
+        and not ref.startswith(("-", "/"))
+        and not ref.endswith(("/", ".", ".lock"))
+        and ".." not in ref
+        and "//" not in ref
+        and "@{" not in ref
+        and re.fullmatch(r"[A-Za-z0-9._/-]+", ref) is not None
+    )
+
+
+class _GitError(Exception):
+    def __init__(self, code, message, **extra):
+        super().__init__(message)
+        self.code, self.message, self.extra = code, message, extra
+
+
+def _git(args, env, log, timeout=180):
+    cmd = ["git", *GIT_SAFE_CONFIG, *args]
+    shown = " ".join(["git", *args])
+    log.append(shown)
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
+    except subprocess.TimeoutExpired:
+        raise _GitError("timeout", f"git took longer than {timeout} s", command=shown)
+    if p.returncode != 0:
+        raise _GitError("git_failed", f"git exited {p.returncode}", command=shown,
+                        output=(p.stdout + p.stderr)[-2000:])
+    return p.stdout
+
+
 def pull_tool(args: dict, **kwargs) -> str:
     try:
         raw_id = args.get("tool_id")
@@ -359,17 +463,24 @@ def pull_tool(args: dict, **kwargs) -> str:
                 f"{t['id']} has no public GitHub repo; use its Studio page instead",
                 studio_url=t["studio_url"],
             )
-        repo = t["github"].rstrip("/").split("/")[-1]
+        src = _source(t)
+        repo = src["source_repo"] or ""
         if repo in {".", ".."} or repo.startswith("-") or not re.fullmatch(r"[A-Za-z0-9._-]+", repo):
             return _err("bad_repo", f"unexpected repo name {repo!r}")
+        if src["third_party"]:
+            return _err(
+                "third_party_repo",
+                f"{t['id']} points to {src['source_owner']}/{repo}, which is not a NullAITech repo; "
+                "this plugin only clones NullAITech/1nc0gn30 repos. Give the user the GitHub link instead.",
+                github=t["github"],
+            )
 
         ref = args.get("ref")
-        if ref is not None:
+        ref_str = None
+        if ref is not None and str(ref).strip() != "":
             ref_str = str(ref).strip()
-            if not ref_str or ref_str.startswith("-") or not re.fullmatch(r"[A-Za-z0-9._/-]+", ref_str):
+            if not _valid_ref(ref_str):
                 return _err("bad_argument", f"invalid ref {ref!r}")
-        else:
-            ref_str = None
 
         root = _clone_root()
         hermes = _hermes_home().resolve()
@@ -379,45 +490,49 @@ def pull_tool(args: dict, **kwargs) -> str:
         if shutil.which("git") is None:
             return _err("git_missing", "git is not installed or not on PATH")
 
-        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-        if (dest / ".git").exists():
-            cmd = ["git", "-C", str(dest), "pull", "--ff-only"]
-        elif dest.exists():
-            return _err("dest_exists", f"{dest} exists and is not a git checkout; refusing to overwrite")
-        else:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            cmd = ["git", "clone", "--depth", "1", t["github"] + ".git", str(dest)]
-
+        env = _git_env()
+        url = _repo_url(t)
+        log = []
+        d = str(dest)
+        is_sha = bool(ref_str and _SHA_RE.fullmatch(ref_str))
         try:
-            p = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
-        except subprocess.TimeoutExpired:
-            return _err("timeout", "git took longer than 180 s", command=" ".join(cmd))
-        out = (p.stdout + p.stderr)[-2000:]
-        if p.returncode != 0:
-            return _err("git_failed", f"git exited {p.returncode}", command=" ".join(cmd), output=out)
+            if (dest / ".git").exists():
+                origin = _git(["-C", d, "remote", "get-url", "origin"], env, log, 10).strip()
+                if origin.rstrip("/").removesuffix(".git").lower() != url.removesuffix(".git").lower():
+                    return _err("dest_exists", f"{dest} is a checkout of {origin!r}, not {url}; refusing to touch it")
+                if ref_str:
+                    _git(["-C", d, "fetch", "--depth", "1", "origin", ref_str], env, log)
+                    _git(["-C", d, "checkout", "--detach", "FETCH_HEAD"], env, log, 60)
+                else:
+                    try:
+                        _git(["-C", d, "symbolic-ref", "-q", "HEAD"], env, log, 10)
+                        on_branch = True
+                    except _GitError:
+                        on_branch = False
+                    if on_branch:
+                        _git(["-C", d, "pull", "--ff-only"], env, log)
+                    else:
+                        # Previously pinned (detached) checkout: move back to the default branch tip.
+                        _git(["-C", d, "fetch", "--depth", "1", "origin", "HEAD"], env, log)
+                        _git(["-C", d, "checkout", "--detach", "FETCH_HEAD"], env, log, 60)
+            elif dest.exists():
+                return _err("dest_exists", f"{dest} exists and is not a git checkout; refusing to overwrite")
+            else:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                if ref_str and not is_sha:
+                    _git(["clone", "--depth", "1", "--branch", ref_str, "--", url, d], env, log)
+                else:
+                    _git(["clone", "--depth", "1", "--", url, d], env, log)
+                    if is_sha:
+                        _git(["-C", d, "fetch", "--depth", "1", "origin", ref_str], env, log)
+                        _git(["-C", d, "checkout", "--detach", "FETCH_HEAD"], env, log, 60)
+            sha = _git(["-C", d, "rev-parse", "HEAD"], env, log, 10).strip()
+        except _GitError as e:
+            return _err(e.code, e.message, **e.extra)
 
-        # Optional explicit ref checkout
-        if ref_str:
-            checkout_cmd = ["git", "-C", str(dest), "checkout", "--", ref_str]
-            try:
-                p_ref = subprocess.run(checkout_cmd, capture_output=True, text=True, timeout=60, env=env)
-            except subprocess.TimeoutExpired:
-                return _err("timeout", f"git checkout {ref_str} took longer than 60 s", command=" ".join(checkout_cmd))
-            out += "\n" + (p_ref.stdout + p_ref.stderr)[-1000:]
-            if p_ref.returncode != 0:
-                return _err("git_failed", f"git checkout {ref_str} exited {p_ref.returncode}", command=" ".join(checkout_cmd), output=out)
-
-        # Inspect resulting commit SHA if destination is a git repo
-        commit_sha = None
-        if (dest / ".git").exists():
-            try:
-                p_sha = subprocess.run(["git", "-C", str(dest), "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10, env=env)
-                if p_sha.returncode == 0 and len(p_sha.stdout.strip()) == 40:
-                    commit_sha = p_sha.stdout.strip()
-            except Exception:
-                pass
-
-        res = {"ok": True, "path": str(dest), "command": " ".join(cmd), "commit": commit_sha, "output": out}
+        res = {"ok": True, "path": d, "command": log[0] if log else None, "commands": log,
+               "commit": sha if _SHA_RE.fullmatch(sha) else None, "source": f"github.com/{src['source_owner']}/{repo}",
+               "monorepo": src["monorepo"]}
         if ref_str:
             res["ref"] = ref_str
         return json.dumps(res)
@@ -425,4 +540,3 @@ def pull_tool(args: dict, **kwargs) -> str:
         return _err("permission_denied", str(e))
     except Exception as e:  # noqa: BLE001
         return _err("internal", str(e))
-

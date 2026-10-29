@@ -27,8 +27,10 @@ STUDIO_TOOL = {
     "description": (
         "Get the details for one Zoth Studio tool by id (from zoth_studio_search): the Studio URL "
         "the user can open to use it in their browser, its GitHub repo, and the "
-        "`npx @nullaitech/zoth pull <id>` command to get it locally. check_live=true makes one "
-        "HTTPS request to confirm the page is up. Unknown ids return did_you_mean suggestions."
+        "`npx @nullaitech/zoth pull <repo>` command (NullAITech repos only), and source flags: "
+        "source_owner, third_party (repo is not by NullAITech) and monorepo (the repo holds the whole "
+        "project, not just this tool). check_live=true makes one HTTPS request to zoth.nullai.tech and "
+        "does not follow redirects to other hosts. Unknown ids return did_you_mean suggestions."
     ),
     "parameters": {
         "type": "object",
@@ -61,7 +63,9 @@ PULL_TOOL = {
         "dest_dir is resolved under that plugin data directory, not the process working directory. "
         "Absolute paths and `..` segments that resolve anywhere else — including ~/.hermes/skills and "
         "~/.hermes/plugins — are refused. Only repos listed in the catalog are allowed, and existing "
-        "non-git folders are never overwritten. Use when the user wants to run or modify a tool locally."
+        "non-git folders are never overwritten. Only NullAITech/1nc0gn30 repos are cloned; third-party "
+        "repos return third_party_repo. git runs with a minimal environment, repo hooks disabled and "
+        "file:// / ext:: transports blocked. Use when the user wants to run or modify a tool locally."
     ),
     "parameters": {
         "type": "object",
@@ -77,7 +81,10 @@ PULL_TOOL = {
             },
             "ref": {
                 "type": "string",
-                "description": "Optional branch, tag, or commit SHA to checkout.",
+                "description": (
+                    "Optional branch, tag, or full 40-character commit SHA. The checkout is detached at "
+                    "that ref; calling again without ref moves it back to the default branch tip."
+                ),
             },
         },
         "required": ["tool_id"],

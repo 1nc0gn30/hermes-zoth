@@ -41,10 +41,10 @@
  },
  {
   "id": "zoth-os",
-  "name": "Zoth OS v3.2",
+  "name": "Zoth OS v3.3.0",
   "category": "Swarm & Core",
   "description": "Debian 13 + KDE Plasma 6.3 sovereign AI distro. Kali + Parrot parity, Studio v2, Ollama on 127.0.0.1, 152 MCP servers all off. Eight named virtual desktops; zoth-workspaces puts a Samsung / DP monitor on its own screen. Live users zoth / azoth / root password zoth.",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "github": "https://github.com/NullAITech/zoth-os",
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-os/"

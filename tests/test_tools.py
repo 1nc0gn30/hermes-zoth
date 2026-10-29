@@ -86,8 +86,10 @@ def _capture_git(monkeypatch):
     captured = {}
 
     def _run(cmd, **kwargs):
-        captured["cmd"] = cmd
-        captured["kwargs"] = kwargs
+        plain = [c for i, c in enumerate(cmd) if not (c == "-c" or (i and cmd[i - 1] == "-c"))]
+        captured.setdefault("cmd", plain)
+        captured.setdefault("kwargs", kwargs)
+        captured.setdefault("all", []).append(plain)
         return _GitResult()
 
     monkeypatch.setattr(tools.shutil, "which", lambda _name: "/usr/bin/git")
@@ -103,7 +105,7 @@ def test_pull_allows_dest_under_clone_root(tmp_path, monkeypatch):
     dest = (parent / _REPO).resolve()
     assert r["ok"] is True
     assert Path(r["path"]) == dest
-    assert captured["cmd"] == ["git", "clone", "--depth", "1", f"https://github.com/NullAITech/{_REPO}.git", str(dest)]
+    assert captured["cmd"] == ["git", "clone", "--depth", "1", "--", f"https://github.com/NullAITech/{_REPO}.git", str(dest)]
     assert captured["kwargs"].get("shell") is not True
     assert dest.is_relative_to(hermes / "plugin-data" / "zoth")
 
@@ -320,37 +322,144 @@ def test_z10_errors_documented_in_readme():
         assert code in readme
 
 
-def test_z11_pull_tool_git_commit_and_ref(tmp_path, monkeypatch):
+def _bare_repo(tmp_path):
+    """Local bare repo with main (2 commits), a tag v1.0.0 on the first commit and a branch dev."""
+    import subprocess as sp
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid", "GIT_CONFIG_GLOBAL": os.devnull}
+    work, bare = tmp_path / "work", tmp_path / "remote.git"
+    run = lambda *a, cwd=work: sp.run(["git", *a], cwd=cwd, env=env, check=True, capture_output=True, text=True).stdout.strip()
+    work.mkdir()
+    run("init", "-q", "-b", "main")
+    (work / "f.txt").write_text("one"); run("add", "."); run("commit", "-qm", "one")
+    first = run("rev-parse", "HEAD"); run("tag", "v1.0.0")
+    run("checkout", "-qb", "dev"); (work / "f.txt").write_text("dev"); run("commit", "-qam", "dev")
+    dev = run("rev-parse", "HEAD"); run("checkout", "-q", "main")
+    (work / "f.txt").write_text("two"); run("commit", "-qam", "two")
+    second = run("rev-parse", "HEAD")
+    run("clone", "-q", "--bare", str(work), str(bare), cwd=tmp_path)
+    return bare, first, second, dev
+
+
+def _use_local_remote(monkeypatch, bare):
+    url = bare.resolve().as_uri()
+    monkeypatch.setattr(tools, "_repo_url", lambda _t: url)
+    # Tests only: allow file:// so we never touch the network. Hooks stay disabled.
+    monkeypatch.setattr(tools, "GIT_SAFE_CONFIG", ["-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=always"])
+
+
+def test_z11_real_git_ref_checkout(tmp_path, monkeypatch):
     hermes, _cwd = _hermes(tmp_path, monkeypatch)
+    bare, first, second, dev = _bare_repo(tmp_path)
+    _use_local_remote(monkeypatch, bare)
+    dest = hermes / "plugin-data" / "zoth" / "tools" / _REPO
+    pull = lambda **kw: json.loads(tools.pull_tool({"tool_id": _PUBLISHED, **kw}))
+
+    r = pull(ref="v1.0.0")                      # fresh clone of a tag
+    assert r["ok"] is True, r
+    assert r["commit"] == first and (dest / "f.txt").read_text() == "one"
+
+    r = pull(ref="dev")                         # re-pull a pinned checkout onto a branch
+    assert r["ok"] is True, r
+    assert r["commit"] == dev and (dest / "f.txt").read_text() == "dev"
+
+    r = pull(ref=first)                         # full SHA on an existing checkout
+    assert r["ok"] is True, r
+    assert r["commit"] == first
+
+    r = pull()                                  # unpinned re-pull of a detached checkout -> default branch tip
+    assert r["ok"] is True, r
+    assert r["commit"] == second and (dest / "f.txt").read_text() == "two"
+
+    r = pull(ref="no-such-ref")
+    assert r["ok"] is False and r["error"]["code"] == "git_failed"
+
+
+def test_z11_real_git_fresh_clone_by_sha(tmp_path, monkeypatch):
+    hermes, _cwd = _hermes(tmp_path, monkeypatch)
+    bare, first, _second, _dev = _bare_repo(tmp_path)
+    _use_local_remote(monkeypatch, bare)
+    monkeypatch.setattr(tools, "GIT_SAFE_CONFIG", tools.GIT_SAFE_CONFIG + ["-c", "uploadpack.allowAnySHA1InWant=true"])
+    r = json.loads(tools.pull_tool({"tool_id": _PUBLISHED, "ref": first}))
+    assert r["ok"] is True, r
+    assert r["commit"] == first
+
+
+def test_pull_refuses_checkout_of_another_remote(tmp_path, monkeypatch):
+    hermes, _cwd = _hermes(tmp_path, monkeypatch)
+    bare, *_ = _bare_repo(tmp_path)
+    _use_local_remote(monkeypatch, bare)
+    assert json.loads(tools.pull_tool({"tool_id": _PUBLISHED}))["ok"] is True
+    monkeypatch.setattr(tools, "_repo_url", lambda _t: "https://github.com/NullAITech/other.git")
+    r = json.loads(tools.pull_tool({"tool_id": _PUBLISHED}))
+    assert r["ok"] is False and r["error"]["code"] == "dest_exists"
+
+
+def test_bad_refs_rejected(tmp_path, monkeypatch):
+    _hermes(tmp_path, monkeypatch)
+    _block_git(monkeypatch)
+    for bad in ["-b", "--upload-pack=x", "a/../b", "..", "a//b", "main.lock", "x@{1}", "a b", "/abs", "a;rm"]:
+        r = json.loads(tools.pull_tool({"tool_id": _PUBLISHED, "ref": bad}))
+        assert r["ok"] is False and r["error"]["code"] == "bad_argument", bad
+
+
+def test_git_env_is_minimal_and_hooks_disabled(tmp_path, monkeypatch):
+    _hermes(tmp_path, monkeypatch)
+    monkeypatch.setenv("GITHUB_TOKEN", "should-not-leak")
+    monkeypatch.setenv("GIT_DIR", "/elsewhere")
     captured = _capture_git(monkeypatch)
-    parent = hermes / "plugin-data" / "zoth" / "vendor"
-    dest = (parent / _REPO).resolve()
+    json.loads(tools.pull_tool({"tool_id": _PUBLISHED}))
+    env = captured["kwargs"]["env"]
+    assert "GITHUB_TOKEN" not in env and "GIT_DIR" not in env
+    assert env["GIT_TERMINAL_PROMPT"] == "0"
+    assert "core.hooksPath=/dev/null" in tools.GIT_SAFE_CONFIG
+    assert "protocol.file.allow=never" in tools.GIT_SAFE_CONFIG
 
-    # Pre-create a git repo to test ref and rev-parse behavior
-    (dest / ".git").mkdir(parents=True)
-    real_sha = "a" * 40
 
-    cmds = []
+def test_third_party_and_monorepo_flags(tmp_path, monkeypatch):
+    _hermes(tmp_path, monkeypatch)
+    _block_git(monkeypatch)
+    g = json.loads(tools.studio_tool({"tool_id": "ghidra-mcp-bridge"}))
+    assert g["third_party"] is True and g["pull_command"] is None
+    r = json.loads(tools.pull_tool({"tool_id": "ghidra-mcp-bridge"}))
+    assert r["error"]["code"] == "third_party_repo"
+    w = json.loads(tools.studio_tool({"tool_id": "hexstrike-arsenal"}))
+    assert w["pull_command"] == "npx @nullaitech/zoth pull NullAI-HexStrike-AI-Terminal"
+    assert json.loads(tools.studio_tool({"tool_id": "bolt.diy"}))["pull_command"] is None  # 1nc0gn30 repo: not in the CLI list
+    m = json.loads(tools.studio_tool({"tool_id": "webmcp-protocol-inspector"}))
+    assert m["monorepo"] is True and m["third_party"] is False
+    s = json.loads(tools.studio_search({"query": "ghidra"}))["results"][0]
+    assert {"source_owner", "source_repo", "third_party", "monorepo"} <= set(s)
 
-    def _mock_run(cmd, **kwargs):
-        cmds.append(cmd)
-        if "rev-parse" in cmd:
-            res = _GitResult(0)
-            res.stdout = real_sha + "\n"
-            return res
-        return _GitResult(0)
 
-    monkeypatch.setattr(tools.subprocess, "run", _mock_run)
-    r = json.loads(tools.pull_tool({"tool_id": _PUBLISHED, "dest_dir": str(parent), "ref": "v1.0.0"}))
-    assert r["ok"] is True
-    assert r["commit"] == real_sha
-    assert r["ref"] == "v1.0.0"
-    assert any("checkout" in c and "--" in c for c in cmds)
+def test_pull_command_only_for_nullaitech_repos():
+    for t in tools._tools():
+        cmd = tools._pull_command(t)
+        src = tools._source(t)
+        if cmd:
+            assert src["source_owner"] == "NullAITech" and cmd.endswith(" " + src["source_repo"])
 
-    # Ref starting with dash is rejected
-    r_bad_ref = json.loads(tools.pull_tool({"tool_id": _PUBLISHED, "dest_dir": str(parent), "ref": "-b"}))
-    assert r_bad_ref["ok"] is False
-    assert r_bad_ref["error"]["code"] == "bad_argument"
+
+def test_status_total_timeout(monkeypatch):
+    import time
+    monkeypatch.setattr(tools, "SERVICES", [("Slow", 1, "/"), ("Fast", 2, "/")])
+    monkeypatch.setattr(tools, "STATUS_TOTAL_TIMEOUT", 0.3)
+    monkeypatch.setattr(tools, "_probe", lambda port, path: (time.sleep(2), (True, None))[1] if port == 1 else (False, None))
+    t0 = time.monotonic(); r = json.loads(tools.status({}))
+    assert time.monotonic() - t0 < 1.5
+    assert r["services"][0].get("timed_out") is True and r["services"][1]["up"] is False
+
+
+def test_check_live_refuses_cross_host_redirect():
+    import urllib.request as ur
+    h = tools._SameHostRedirect()
+    req = ur.Request("https://zoth.nullai.tech/tools/x/")
+    try:
+        h.redirect_request(req, None, 302, "Found", {}, "https://evil.example/")
+        assert False, "should refuse"
+    except tools.urllib.error.URLError:
+        pass
+    assert h.redirect_request(req, None, 302, "Found", {}, "https://zoth.nullai.tech/tools/x") is not None
 
 
 def test_z12_catalog_cache_invalidation(tmp_path, monkeypatch):
