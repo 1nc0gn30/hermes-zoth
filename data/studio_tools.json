@@ -6,7 +6,7 @@
   "description": "Ultra-low latency Google Pixel screenshare, camera bridge, and sovereign wireless ADB mirroring workstation over Tailscale mesh.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/pixel-cast",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/pixel-cast/"
  },
  {
@@ -285,7 +285,7 @@
   "category": "Security & OpSec",
   "description": "Autonomous biometric laptop perimeter defense, WiFi X-Ray RF tomography, USB tripwire guard, and thermal FLIR optics. Free to use; tips optional.",
   "version": "2.5.0",
-  "github": "https://github.com/1nc0gn30/anderson-security-sentinel",
+  "github": "https://github.com/1nc0gn30/sentinel-security-engine",
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/anderson-security-sentinel/"
  },
@@ -348,6 +348,16 @@
   "github": "https://github.com/1nc0gn30/agent-prompt-firewall",
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-prompt-firewall/"
+ },
+ {
+  "id": "wcag-contrast-guard",
+  "name": "WCAG & APCA Contrast Guard Studio",
+  "category": "accessibility",
+  "description": "WCAG 2.2 Level AA/AAA, APCA contrast algorithm, colorblindness simulation, focus indicators, and harmonic palette generation.",
+  "version": "2.5.0",
+  "github": "https://github.com/1nc0gn30/wcag-contrast-guard",
+  "published": false,
+  "studio_url": "https://zoth.nullai.tech/tools/wcag-contrast-guard/"
  },
  {
   "id": "agent-flight-recorder",
@@ -466,7 +476,7 @@
   "description": "Autonomous sovereign real-time voice cockpit, live audio WebSocket streaming, multi-persona voice synthesizer, and zero-telemetry call protocol.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-voice-call",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-voice-call/"
  },
  {
@@ -566,7 +576,7 @@
   "description": "Local video double on GPU; Chatterbox Turbo voice cloning and Wav2Lip photorealistic mouth animation on Quadro P1000 with zero cloud leakage.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/likeness-desk",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/likeness-desk/"
  },
  {
@@ -580,14 +590,24 @@
   "studio_url": "https://zoth.nullai.tech/tools/osint-scout-skill/"
  },
  {
-  "id": "bolt.diy",
+  "id": "zoth-osint",
+  "name": "Zoth OSINT Workstation & Masterclass",
+  "category": "Security & Recon",
+  "description": "Sovereign OSINT investigation workstation, 10-module interactive masterclass, subdomain takeover auditing across 23+ SaaS fingerprints, zero-knowledge HIBP k-anonymity breach intel, and MITRE ATT&CK CTI matrix mapping with STIX 2.1 & Obsidian Canvas export.",
+  "version": "4.0.0",
+  "github": "https://github.com/1nc0gn30/zoth-osint",
+  "published": false,
+  "studio_url": "https://zoth.nullai.tech/tools/zoth-osint/"
+ },
+ {
+  "id": "zoth-bolt",
   "name": "Zoth Bolt",
   "category": "Autonomous Web",
-  "description": "Flagship Full-Stack AI Web & Motion Architect on 127.0.0.1:5173. Supports 23+ AI providers, local CLI agents (AGY, Hermes, Grok, Claude, OpenCode, Cline, Aider), 6 Motion Edit templates, 200k+ free SVG & 16-bit Pixel Art icons, MCP asset bridge, and live WebContainers.",
+  "description": "Flagship Sovereign Full-Stack AI Web & Motion Architect (Zoth Bolt / bolt.diy) on 127.0.0.1:5173. Supports 19+ AI providers, local Ollama & CLI agents (AGY, Hermes, Grok, Claude, OpenCode, Cline, Aider), 6 Motion Edit templates, 200k+ SVG & Pixel Art icons, TUI (`zoth-bolt-tui`), and Electron Desktop app (`zoth-bolt desktop`).",
   "version": "3.5.0",
-  "github": "https://github.com/stackblitz-labs/bolt.diy",
+  "github": "https://github.com/1nc0gn30/zoth-webgen",
   "published": true,
-  "studio_url": "https://zoth.nullai.tech/tools/bolt.diy/"
+  "studio_url": "https://zoth.nullai.tech/tools/zoth-bolt/"
  },
  {
   "id": "zoth-civilization",
@@ -596,7 +616,7 @@
   "description": "The living heart of the 21-agent society. Runs the GameBoy pixel world simulation, Adytum Initiation Deck, and meditation art catalog.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/zoth-civilization",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-civilization/"
  },
  {
@@ -606,7 +626,7 @@
   "description": "10 master Etsy Print-on-Demand products optimized for 55+ demographic with 62.6% blended profit margin, 13/13 tag sets, and 100% free & open-access with optional Buy Us a Coffee & Solana tip support.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/storefront-catalog",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/storefront-catalog/"
  },
  {
@@ -616,7 +636,7 @@
   "description": "Zero-egress defensive asset auditor and InternetDB engine. Inspects open ports, CPE software stacks, and confirmed CVE exposures for your infrastructure.",
   "version": "3.5.0",
   "github": "https://github.com/1nc0gn30/shodan-surface-sentinel",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/shodan-surface-sentinel/"
  },
  {
@@ -646,7 +666,7 @@
   "description": "100% client-side YARA-X & Sigma threat detection compiler with 60fps byte-offset entropy radar, CVE-2024-4577 PHP-CGI / ELF64 memfd / AI Agent exfil signatures, and MITRE ATT&CK mapping.",
   "version": "3.4.0",
   "github": "https://github.com/1nc0gn30/yara-sigma-forge",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/yara-sigma-forge/"
  },
  {
@@ -656,7 +676,7 @@
   "description": "Interactive 60fps Reality Switch shader synthesizer and ZothOS desktop theme compiler. Customize the 5 Zoth Realities, preview Zoth Bot companions, and export KDE Plasma .colors, Alacritty .toml, and CSS tokens.",
   "version": "3.4.0",
   "github": "https://github.com/1nc0gn30/reality-shader-forge",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/reality-shader-forge/"
  },
  {
@@ -666,7 +686,7 @@
   "description": "Local Zoth OS cockpit that diffs the ZOTHOS Product Hunt listing against live website/GitHub URLs, surfaces votes/ranks/comments, and serves a loopback dashboard on :8139. Token stays in ~/.config/zothos/producthunt.secret.json.",
   "version": "1.1.0",
   "github": "https://github.com/1nc0gn30/producthunt-connector",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/producthunt-connector/"
  },
  {
@@ -676,7 +696,7 @@
   "description": "Hardened local MCP/HTTP bridge so many AI agents share one ZothOS machine with per-agent tokens, path sandbox, command blocklist, rate limits, and audit trail on 127.0.0.1:8765.",
   "version": "0.5.0",
   "github": "https://github.com/1nc0gn30/zoth-relay",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-relay/"
  },
  {
@@ -686,7 +706,7 @@
   "description": "Sovereign wearable AI mission coach for Ray-Ban Meta smart glasses over Tailscale — full-duplex WebSocket guide stream, Moondream vision, AGY coaching, and Kokoro TTS via zoth-relay-mobile.",
   "version": "0.5.0",
   "github": "https://github.com/1nc0gn30/zela-glasses-guide",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zela-glasses-guide/"
  },
  {
@@ -696,7 +716,7 @@
   "description": "Local-first always-on 3D WebGL desk companion for Zoth OS — multi-harness neural engine (Grok/Hermes/Ollama), Security Ring authority, MCP hub, summoned with Ctrl+Shift+Space.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/zoth-bot",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-bot/"
  },
  {
@@ -706,7 +726,7 @@
   "description": "Zero-false-positive security research & responsible disclosure workspace tracking Ongoing / Pending / Completed audits with a loopback command center on :9494.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/zoth-bounty",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-bounty/"
  },
  {
@@ -716,7 +736,37 @@
   "description": "Procedural ZothOS-style ASCII + pixel-art scene engine — 1000 deterministic scenes with Bayer dither, tube palettes, and three.js AsciiEffect stage on :8823.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/zoth-scene-foundry",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-scene-foundry/"
+ },
+ {
+  "id": "zoth-math-pillar",
+  "name": "Zoth Math Pillar HUD",
+  "category": "Security & Enclave",
+  "description": "Real-time 4-Pillar Mathematical Security & Compute Telemetry HUD (L0 Kernel Hardware, L1 Crypto Vault, L2 Network Enclave, L3 Agent Runtime) with Compact Pill mode, Electron desktop overlay, and Braille TUI.",
+  "version": "2.0.0",
+  "github": "https://github.com/1nc0gn30/zoth-os/tree/main/config/includes.chroot/opt/zoth-math-pillar",
+  "published": false,
+  "studio_url": "https://zoth.nullai.tech/tools/zoth-math-pillar/"
+ },
+ {
+  "id": "zothos-lite",
+  "name": "ZothOS-Lite v1.1 (Amnesic Monotone OS)",
+  "category": "Hardware & OS",
+  "description": "1-Bit Monotone Amnesic Security & AI Workstation (toram noswap) with AZOTH Embodied Braille AI, A100 80GB Foundry, 21 Pantheon Agent Rigs, 6 Helios-Zoth Planets, 22 Adytum Tarot 3D Dioramas, and 45 Kali/Parrot CLI Tools on :8145.",
+  "version": "1.1.0",
+  "github": "https://github.com/1nc0gn30/zothos-lite",
+  "published": true,
+  "studio_url": "https://zoth.nullai.tech/tools/zothos-lite/"
+ },
+ {
+  "id": "zothnet",
+  "name": "ZothNet (Sovereign Darknet Mesh)",
+  "category": "Swarm & Core",
+  "description": "Autonomous zero-DNS darknet mesh with Sphinx 1,280B onion mixnet, Vaelor feeless L1 DAG, Kademlia DHT alpha=3, RFC 5389 STUN NAT traversal, and CAS parallel swarm on :9900 and UDP :42069.",
+  "version": "1.2.0",
+  "github": "https://github.com/1nc0gn30/zothnet",
+  "published": false,
+  "studio_url": "https://zoth.nullai.tech/tools/zothnet/"
  }
 ]

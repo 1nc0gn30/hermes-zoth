@@ -540,3 +540,153 @@ def pull_tool(args: dict, **kwargs) -> str:
         return _err("permission_denied", str(e))
     except Exception as e:  # noqa: BLE001
         return _err("internal", str(e))
+
+
+ECOSYSTEM_PRODUCTS = [
+    {
+        "id": "zothos",
+        "name": "ZOTHOS (Sovereign Debian 13 AI Workstation OS)",
+        "domain": "https://zothos.nullai.tech",
+        "github": "https://github.com/1nc0gn30/zoth-os",
+        "website_github": "https://github.com/1nc0gn30/zoth-os-website",
+        "workspace_paths": ["/home/zoth/NullAITech/zoth-os", "/home/zoth/NullAITech/zoth-os-website"],
+        "public_dir": "/home/zoth/NullAITech/zoth-os-website/public",
+        "focus": "Debian 13 Trixie Live ISO, KDE Plasma 6 + XFCE4 sovereign workstation, pre-wired local daemons (:8094-:8106), CLI binaries, and zothos.nullai.tech website.",
+    },
+    {
+        "id": "zothos-lite",
+        "name": "ZOTHOS Lite (Instant Browser & Portable Sovereign OS)",
+        "domain": "https://lite.zoth.nullai.tech",
+        "github": "https://github.com/1nc0gn30/zothos-lite",
+        "workspace_paths": ["/home/zoth/NullAITech/zothos-lite"],
+        "public_dir": "/home/zoth/NullAITech/zothos-lite/public",
+        "focus": "Lightweight browser-accessible and portable sovereign desktop environment with zero-bloat terminal, VM harness, and instant tool execution.",
+    },
+    {
+        "id": "zothnet",
+        "name": "ZothNet (Zero-Cloud Mesh & Encrypted Sovereign Network)",
+        "domain": "https://zothnet.nullai.tech",
+        "github": "https://github.com/1nc0gn30/zothnet",
+        "website_github": "https://github.com/1nc0gn30/zothnet-website",
+        "workspace_paths": ["/home/zoth/NullAITech/zothnet", "/home/zoth/NullAITech/zothnet-website", "/home/zoth/NullAITech/zothnet-android"],
+        "public_dir": "/home/zoth/NullAITech/zothnet-website/public",
+        "focus": "Encrypted P2P mesh networking, node discovery, sovereign agent transport, Android companion app, and zothnet.nullai.tech portal.",
+    },
+    {
+        "id": "zoth-studio",
+        "name": "Zoth Studio v2 (77+ Zero-Cloud In-Browser Developer & Security Tools)",
+        "domain": "https://zoth.nullai.tech",
+        "github": "https://github.com/1nc0gn30/zoth-studio-v2",
+        "workspace_paths": ["/home/zoth/NullAITech/zoth-studio-v2"],
+        "public_dir": "/home/zoth/NullAITech/zoth-studio-v2/public",
+        "focus": "77+ 100% free in-browser developer, security, AEO/SEO, and AI agent safety tools with local daemon bridges and zero paywalls.",
+    },
+    {
+        "id": "1nc0gn30",
+        "name": "1nc0gn30 · World of Zoth (Sovereign Creator & Open-Source Hub)",
+        "domain": "https://nealfrazier.tech",
+        "github": "https://github.com/1nc0gn30",
+        "workspace_paths": ["/home/zoth/Desktop/world-of-zoth"],
+        "public_dir": "/home/zoth/Desktop/world-of-zoth",
+        "focus": "Interactive World of Zoth 3D/WebGL experience, @1nc0gn30 open-source engineering hub, Real-Life World of Zoth cinema, and X growth automation.",
+    },
+    {
+        "id": "nullai",
+        "name": "NullAI Platform (Sovereign AI Research & Engineering)",
+        "domain": "https://nullai.tech",
+        "github": "https://github.com/1nc0gn30/nullai2026",
+        "workspace_paths": ["/home/zoth/NullAITech/nullai2026", "/home/zoth/NullAITech/hermes-zoth"],
+        "public_dir": "/home/zoth/NullAITech/nullai2026/public",
+        "focus": "Umbrella sovereign AI research platform uniting ZothOS, Zoth Studio, ZothNet, Hermes-Zoth plugin, and local-first AI agent infrastructure.",
+    },
+]
+
+GROWTH_CHANNELS = [
+    {"id": "product-hunt", "name": "Product Hunt", "type": "directory", "url": "https://www.producthunt.com", "status": "live", "products": ["zoth-studio", "zothos"], "notes": "Already live on Product Hunt; keep shipping changelog updates and media."},
+    {"id": "hacker-news-show", "name": "Hacker News (Show HN)", "type": "community", "url": "https://news.ycombinator.com/submit", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet", "hermes-zoth"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/show_hn.md"},
+    {"id": "alternativeto", "name": "AlternativeTo", "type": "directory", "url": "https://alternativeto.net", "status": "ready_to_submit", "products": ["zothos", "zoth-studio", "zothnet"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/alternativeto.md"},
+    {"id": "devhunt", "name": "DevHunt (Developer Tools Launchpad)", "type": "directory", "url": "https://devhunt.org", "status": "ready_to_submit", "products": ["zoth-studio", "hermes-zoth", "zothos"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/devhunt.md"},
+    {"id": "saashub", "name": "SaaSHub", "type": "directory", "url": "https://www.saashub.com/submit", "status": "ready_to_submit", "products": ["zoth-studio", "zothos", "zothnet"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/saashub.md"},
+    {"id": "betalist", "name": "BetaList", "type": "directory", "url": "https://betalist.com/submit", "status": "ready_to_submit", "products": ["zothos-lite", "zothnet", "zoth-studio"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/betalist.md"},
+    {"id": "toolify", "name": "Toolify.ai", "type": "directory", "url": "https://www.toolify.ai/submit", "status": "ready_to_submit", "products": ["zoth-studio", "nullai"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/ai_directories.md"},
+    {"id": "futurepedia", "name": "Futurepedia", "type": "directory", "url": "https://www.futurepedia.io/submit-tool", "status": "ready_to_submit", "products": ["zoth-studio", "nullai"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/ai_directories.md"},
+    {"id": "taaft", "name": "There's An AI For That (TAAFT)", "type": "directory", "url": "https://theresanaiforthat.com/submit/", "status": "ready_to_submit", "products": ["zoth-studio", "zothos"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/ai_directories.md"},
+    {"id": "uneed", "name": "Uneed.best", "type": "directory", "url": "https://www.uneed.best/submit-a-tool", "status": "ready_to_submit", "products": ["zoth-studio", "zothos-lite"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/devhunt.md"},
+    {"id": "awesome-selfhosted", "name": "GitHub: awesome-selfhosted", "type": "awesome-list", "url": "https://github.com/awesome-selfhosted/awesome-selfhosted", "status": "pr_ready", "products": ["zoth-studio", "zothnet"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/awesome_lists_prs.md"},
+    {"id": "awesome-mcp-servers", "name": "GitHub: punkpeye/awesome-mcp-servers", "type": "awesome-list", "url": "https://github.com/punkpeye/awesome-mcp-servers", "status": "pr_ready", "products": ["zoth-studio", "hermes-zoth"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/awesome_lists_prs.md"},
+    {"id": "awesome-cli-apps", "name": "GitHub: agarrharr/awesome-cli-apps", "type": "awesome-list", "url": "https://github.com/agarrharr/awesome-cli-apps", "status": "pr_ready", "products": ["zothos", "zoth-studio"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/awesome_lists_prs.md"},
+    {"id": "awesome-linux", "name": "GitHub: inputsh/awesome-linux", "type": "awesome-list", "url": "https://github.com/inputsh/awesome-linux", "status": "pr_ready", "products": ["zothos", "zothos-lite"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/awesome_lists_prs.md"},
+    {"id": "reddit-selfhosted", "name": "Reddit: r/selfhosted", "type": "community", "url": "https://www.reddit.com/r/selfhosted/", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/reddit_launch_posts.md"},
+    {"id": "reddit-localllama", "name": "Reddit: r/LocalLLaMA", "type": "community", "url": "https://www.reddit.com/r/LocalLLaMA/", "status": "ready_to_post", "products": ["zothos", "hermes-zoth", "zoth-studio"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/reddit_launch_posts.md"},
+    {"id": "reddit-linux", "name": "Reddit: r/linux & r/commandline", "type": "community", "url": "https://www.reddit.com/r/linux/", "status": "ready_to_post", "products": ["zothos", "zothos-lite"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/reddit_launch_posts.md"},
+    {"id": "devto-hashnode", "name": "Dev.to & Hashnode Technical Deep-Dives", "type": "blog", "url": "https://dev.to", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet", "nullai"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/devto_hashnode_articles.md"},
+    {"id": "indiehackers", "name": "IndieHackers", "type": "community", "url": "https://www.indiehackers.com", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "nullai"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/devto_hashnode_articles.md"},
+]
+
+
+def bridge_post(args: dict, **kwargs) -> str:
+    try:
+        body = str(args.get("body") or "").strip()
+        if not body:
+            return _err("bad_argument", "body is required")
+        sender = str(args.get("sender") or os.environ.get("HERMES_PROFILE") or "hermes-zoth").strip()
+        recipient = str(args.get("recipient") or "broadcast").strip()
+        topic = str(args.get("topic") or "hermes-swarm-update").strip()
+        payload = json.dumps({
+            "sender": sender,
+            "recipient": recipient,
+            "subject": topic,
+            "topic": topic,
+            "body": body,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "http://127.0.0.1:8102/api/agents/message",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=4.0) as r:
+            resp = json.loads(r.read(65536).decode("utf-8"))
+        return json.dumps({"ok": True, "bridge_response": resp})
+    except Exception as e:  # noqa: BLE001
+        return _err("bridge_unreachable", f"could not post to Sovereign Agent Bridge (:8102): {e}")
+
+
+def ecosystem_targets(args: dict, **kwargs) -> str:
+    try:
+        filt = str(args.get("product") or "").strip().lower()
+        results = []
+        for item in ECOSYSTEM_PRODUCTS:
+            if filt and filt not in item["id"] and filt not in item["name"].lower():
+                continue
+            row = dict(item)
+            pub = Path(item["public_dir"])
+            row["seo_health"] = {
+                "robots_txt": (pub / "robots.txt").exists(),
+                "sitemap_xml": (pub / "sitemap.xml").exists(),
+                "llms_txt": (pub / "llms.txt").exists(),
+            }
+            existing_paths = [p for p in item["workspace_paths"] if Path(p).exists()]
+            row["existing_workspace_paths"] = existing_paths
+            results.append(row)
+        return json.dumps({"ok": True, "count": len(results), "products": results})
+    except Exception as e:  # noqa: BLE001
+        return _err("internal", str(e))
+
+
+def growth_directories(args: dict, **kwargs) -> str:
+    try:
+        ctype = str(args.get("channel_type") or "").strip().lower()
+        items = [
+            c for c in GROWTH_CHANNELS
+            if not ctype or c["type"].lower() == ctype
+        ]
+        return json.dumps({
+            "ok": True,
+            "count": len(items),
+            "channels": items,
+            "hub_dir": "/home/zoth/NullAITech/growth-distribution",
+        })
+    except Exception as e:  # noqa: BLE001
+        return _err("internal", str(e))
+

@@ -90,3 +90,63 @@ PULL_TOOL = {
         "required": ["tool_id"],
     },
 }
+
+BRIDGE_POST = {
+    "name": "zoth_bridge_post",
+    "description": (
+        "Broadcast a structured agent message, progress update, audit report, or handoff onto the "
+        "Sovereign Agent Bridge (:8102) so Antigravity, Meta Muse Code, Hermes Swarm peers, and the "
+        "user's Bridge dashboard see what you are working on in real time."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "sender": {"type": "string", "description": "Sender agent handle (e.g. 'hermes-builder', 'hermes-growth', 'hermes-auditor', 'hermes-scout')."},
+            "recipient": {"type": "string", "description": "Target agent or 'broadcast' (default 'broadcast')."},
+            "topic": {"type": "string", "description": "Short topic slug (e.g. 'zothos-upgrade', 'directory-launch', 'seo-audit')."},
+            "body": {"type": "string", "description": "Detailed message or markdown report body."},
+        },
+        "required": ["body"],
+    },
+}
+
+ECOSYSTEM_TARGETS = {
+    "name": "zoth_ecosystem_targets",
+    "description": (
+        "Inspect the 6 flagship Zoth / NullAI ecosystem products (ZothOS, ZothOS Lite, ZothNet, "
+        "Zoth Studio, 1nc0gn30 / World of Zoth, and NullAI Platform), returning their local workspace "
+        "paths, GitHub repositories, live production domains, git status, and SEO/AEO file health."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "product": {
+                "type": "string",
+                "description": "Optional filter: 'zothos', 'zothos-lite', 'zothnet', 'zoth-studio', '1nc0gn30', or 'nullai'. Empty lists all 6.",
+            }
+        },
+        "required": [],
+    },
+}
+
+GROWTH_DIRECTORIES = {
+    "name": "zoth_growth_directories",
+    "description": (
+        "List and inspect the 18+ launch directories, developer communities, and Awesome Lists beyond "
+        "Product Hunt where ZothOS, ZothOS Lite, ZothNet, and Zoth Studio are being distributed "
+        "(Show HN, AlternativeTo, DevHunt, BetaList, SaaSHub, Toolify, Futurepedia, GitHub Awesome Lists, "
+        "Reddit r/selfhosted / r/LocalLLaMA / r/linux, Dev.to, Hashnode, IndieHackers), including submission "
+        "URLs, category fit, and ready-to-post launch copy paths."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "channel_type": {
+                "type": "string",
+                "description": "Optional filter: 'directory', 'awesome-list', 'community', or 'blog'.",
+            }
+        },
+        "required": [],
+    },
+}
+

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.nullaitech/hermes-zoth",
+  "description": "Zoth Studio tool catalog, ZOTHOS services, and NullAI ecosystem bridge for Hermes Agent.",
+  "version": "1.2.0",
+  "title": "hermes-zoth",
+  "websiteUrl": "https://github.com/1nc0gn30/hermes-zoth",
+  "repository": {
+    "url": "https://github.com/1nc0gn30/hermes-zoth",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "other",
+      "identifier": "https://github.com/1nc0gn30/hermes-zoth",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "python",
+      "packageArguments": [
+        {
+          "type": "positional",
+          "valueHint": "plugin-path"
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/1nc0gn30/hermes-zoth/main/assets/icon.png",
+      "type": "image/png",
+      "sizes": "48x48"
+    }
+  ]
+}

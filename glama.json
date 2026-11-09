@@ -1,0 +1,24 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/connector.json",
+  "name": "hermes-zoth",
+  "displayName": "hermes-zoth",
+  "description": "Zoth Studio tool catalog, ZOTHOS services, and NullAI ecosystem bridge for Hermes Agent.",
+  "version": "1.2.0",
+  "author": "Neal Frazier (NullAITech)",
+  "repository": "https://github.com/1nc0gn30/hermes-zoth",
+  "homepage": "https://zoth.nullai.tech",
+  "transport": "stdio",
+  "category": "Tool Directory",
+  "environmentVariables": [],
+  "buildSpec": {
+    "command": "python -m pip install git+https://github.com/1nc0gn30/hermes-zoth",
+    "test": "hermes plugins validate ~/.hermes/plugins/zoth"
+  },
+  "tags": [
+    "hermes",
+    "zoth-studio",
+    "zothos",
+    "mcp",
+    "plugin"
+  ]
+}
