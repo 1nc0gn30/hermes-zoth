@@ -596,7 +596,7 @@
   "description": "Sovereign OSINT investigation workstation, 10-module interactive masterclass, subdomain takeover auditing across 23+ SaaS fingerprints, zero-knowledge HIBP k-anonymity breach intel, and MITRE ATT&CK CTI matrix mapping with STIX 2.1 & Obsidian Canvas export.",
   "version": "4.0.0",
   "github": "https://github.com/1nc0gn30/zoth-osint",
-  "published": false,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-osint/"
  },
  {
