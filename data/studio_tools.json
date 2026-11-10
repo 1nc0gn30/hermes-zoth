@@ -611,10 +611,10 @@
  },
  {
   "id": "zoth-civilization",
-  "name": "Zoth Civilization Hub",
+  "name": "Zoth Civilization v3.0",
   "category": "Swarm & Core",
-  "description": "The living heart of the 21-agent society. Runs the GameBoy pixel world simulation, Adytum Initiation Deck, and meditation art catalog.",
-  "version": "2.5.0",
+  "description": "Autonomous 23-agent Pantheon society simulation on the Sphere of Zoth Prime. Features Imperator Quests (Ranks I–V), 4 Planetary Decrees, the zero-leak 22-Key Sanctuary, and lightweight BYOK reasoning via DeepSeek Flash through Hermes Agent (Nous Research).",
+  "version": "3.0.0",
   "github": "https://github.com/1nc0gn30/zoth-civilization",
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-civilization/"
@@ -753,7 +753,7 @@
   "id": "zothos-lite",
   "name": "ZothOS-Lite v1.2 (Amnesic Monotone OS)",
   "category": "Hardware & OS",
-  "description": "1-Bit Amnesic Monotone Security & AI OS (Debian 13 Live · toram noswap) supporting 48+ AI models across 8 providers, interactive onboarding, ZothNet P2P mesh, external USB/cloud persistence, and lightweight media/dev tools on :8145.",
+  "description": "Tails-style Amnesic Monotone Security & AI OS (#F7F7F4 / #000000 · Debian 13 Live · toram noswap) supporting 56 curated AI models across 8 providers, interactive onboarding, ZothNet P2P mesh, external USB/cloud persistence, and lightweight media/dev tools on :8145.",
   "version": "1.2.0",
   "github": "https://github.com/1nc0gn30/zothos-lite",
   "published": true,
@@ -765,7 +765,7 @@
   "category": "Swarm & Core",
   "description": "Autonomous zero-DNS darknet mesh with Sphinx 1,280B onion mixnet, Vaelor feeless L1 DAG, Kademlia DHT alpha=3, RFC 5389 STUN NAT traversal, and CAS parallel swarm on :9900 and UDP :42069.",
   "version": "1.2.0",
-  "github": "https://github.com/1nc0gn30/zothnet",
+  "github": "https://github.com/NullAITech/zoth-studio-v2",
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/zothnet/"
  }
