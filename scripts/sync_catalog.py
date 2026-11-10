@@ -26,21 +26,31 @@ def load(studio: Path):
 
 
 def page_ok(url):
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "hermes-zoth-sync"})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            m = re.search(r"<title>([^<]*)", r.read(65536).decode("utf-8", "replace"))
-            return r.status == 200 and bool(m) and GENERIC_TITLE not in m.group(1)
-    except Exception:
-        return False
+    for _ in range(2):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "hermes-zoth-sync"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                m = re.search(r"<title>([^<]*)", r.read(65536).decode("utf-8", "replace"))
+                if r.status == 200 and bool(m) and GENERIC_TITLE not in m.group(1):
+                    return True
+        except Exception:
+            pass
+    return False
 
 
 def repo_ok(url):
     if not url.startswith("https://github.com/"):
         return False
+    base = re.sub(r"/(tree|blob)/.*$", "", url)
     env = {"GIT_TERMINAL_PROMPT": "0", "PATH": "/usr/bin:/bin:/usr/local/bin"}
-    return subprocess.run(["git", "-c", "credential.helper=", "ls-remote", "-q", url, "HEAD"],
-                          capture_output=True, env=env, timeout=30).returncode == 0
+    for _ in range(2):
+        try:
+            if subprocess.run(["git", "-c", "credential.helper=", "ls-remote", "-q", base, "HEAD"],
+                              capture_output=True, env=env, timeout=30).returncode == 0:
+                return True
+        except Exception:
+            pass
+    return False
 
 
 def main():

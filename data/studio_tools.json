@@ -285,7 +285,7 @@
   "category": "Security & OpSec",
   "description": "Autonomous biometric laptop perimeter defense, WiFi X-Ray RF tomography, USB tripwire guard, and thermal FLIR optics. Free to use; tips optional.",
   "version": "2.5.0",
-  "github": "https://github.com/1nc0gn30/sentinel-security-engine",
+  "github": "https://github.com/1nc0gn30/anderson-security-sentinel",
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/anderson-security-sentinel/"
  },
@@ -352,7 +352,7 @@
  {
   "id": "wcag-contrast-guard",
   "name": "WCAG & APCA Contrast Guard Studio",
-  "category": "accessibility",
+  "category": "Accessibility & UI",
   "description": "WCAG 2.2 Level AA/AAA, APCA contrast algorithm, colorblindness simulation, focus indicators, and harmonic palette generation.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/wcag-contrast-guard",
@@ -745,16 +745,16 @@
   "category": "Security & Enclave",
   "description": "Real-time 4-Pillar Mathematical Security & Compute Telemetry HUD (L0 Kernel Hardware, L1 Crypto Vault, L2 Network Enclave, L3 Agent Runtime) with Compact Pill mode, Electron desktop overlay, and Braille TUI.",
   "version": "2.0.0",
-  "github": "https://github.com/1nc0gn30/zoth-os/tree/main/config/includes.chroot/opt/zoth-math-pillar",
-  "published": false,
+  "github": "https://github.com/1nc0gn30/zoth-os",
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-math-pillar/"
  },
  {
   "id": "zothos-lite",
-  "name": "ZothOS-Lite v1.1 (Amnesic Monotone OS)",
+  "name": "ZothOS-Lite v1.2 (Amnesic Monotone OS)",
   "category": "Hardware & OS",
-  "description": "1-Bit Monotone Amnesic Security & AI Workstation (toram noswap) with AZOTH Embodied Braille AI, A100 80GB Foundry, 21 Pantheon Agent Rigs, 6 Helios-Zoth Planets, 22 Adytum Tarot 3D Dioramas, and 45 Kali/Parrot CLI Tools on :8145.",
-  "version": "1.1.0",
+  "description": "1-Bit Amnesic Monotone Security & AI OS (Debian 13 Live · toram noswap) supporting 48+ AI models across 8 providers, interactive onboarding, ZothNet P2P mesh, external USB/cloud persistence, and lightweight media/dev tools on :8145.",
+  "version": "1.2.0",
   "github": "https://github.com/1nc0gn30/zothos-lite",
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zothos-lite/"
