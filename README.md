@@ -4,7 +4,7 @@
 
 Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.nullai.tech), a collection of 71 in-browser developer, security, agent-safety and creator tools (59 with a public GitHub source), and with the local Zoth services that run on **ZOTHOS** ("Zoth O-S"), the Debian-based AI Linux distro, or on any machine with Zoth installed.
 
-> Independent community plugin by Neal Frazier / NullAITech. Not affiliated with or endorsed by Nous Research.
+> Independent community plugin by 1nc0gn30 (Zoth Studio). Not affiliated with or endorsed by Nous Research.
 
 ## Install
 
@@ -164,4 +164,4 @@ hermes plugins doctor . --ci
 
 ## License
 
-MIT © 2026 Neal Frazier
+MIT © 2026 1nc0gn30
