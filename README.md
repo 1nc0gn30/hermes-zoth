@@ -4,14 +4,14 @@
 
 Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.nullai.tech), a collection of 71 in-browser developer, security, agent-safety and creator tools (59 with a public GitHub source), and with the local Zoth services that run on **ZOTHOS** ("Zoth O-S"), the Debian-based AI Linux distro, or on any machine with Zoth installed.
 
-> Independent community plugin by Neal Frazier / NullAITech. Not affiliated with or endorsed by Nous Research.
+> Independent community plugin by 1nc0gn30 (Zoth Studio). Not affiliated with or endorsed by Nous Research.
 
 ## Install
 
 ```bash
 hermes plugins install https://github.com/1nc0gn30/hermes-zoth
 hermes plugins enable zoth
-hermes plugins list | grep zoth      # ✓ zoth 1.1.4 (4 tools)
+hermes plugins list | grep zoth      # ✓ zoth 1.1.5 (4 tools)
 ```
 
 Or copy the folder to `~/.hermes/plugins/zoth/` and run `hermes plugins enable zoth`.
@@ -140,6 +140,10 @@ The script keeps only public fields and checks that every Studio page answers wi
 
 ## Changelog
 
+### 1.1.5
+
+- Author credit is 1nc0gn30 (Zoth Studio). No behavior changes.
+
 ### 1.1.4
 
 - `ref` actually works: branches and tags clone with `--branch`, full SHAs use `fetch --depth 1` + `checkout --detach FETCH_HEAD`, and a pinned checkout can be re-pinned or moved back to the default branch. Covered by tests against a real local git repo.
@@ -164,4 +168,4 @@ hermes plugins doctor . --ci
 
 ## License
 
-MIT © 2026 Neal Frazier
+MIT © 2026 1nc0gn30

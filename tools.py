@@ -41,7 +41,7 @@ SERVICES = [
 ]
 
 
-# Repos the plugin will clone. Both are Neal Frazier / NullAITech accounts.
+# Repos the plugin will clone. Both are 1nc0gn30 (Zoth Studio) accounts.
 ALLOWED_OWNERS = {"nullaitech", "1nc0gn30"}
 # Repos that hold many tools; pulling one of these fetches the whole project.
 MONOREPOS = {"zoth-studio-v2", "zoth-os"}
