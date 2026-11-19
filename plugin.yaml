@@ -1,7 +1,7 @@
 name: zoth
 version: 1.2.0
 description: Zoth Studio tool catalog, ZOTHOS local services, Sovereign Agent Bridge (:8102) bus, and NullAI Ecosystem & Growth Hub for Hermes
-author: Neal Frazier (NullAITech)
+author: 1nc0gn30 (Zoth Studio)
 requires_hermes: ">=0.21.5"
 provides_tools:
   - zoth_studio_search
