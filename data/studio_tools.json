@@ -10,6 +10,16 @@
   "studio_url": "https://zoth.nullai.tech/tools/pixel-cast/"
  },
  {
+  "id": "aether-observatory",
+  "name": "Aether Observatory",
+  "category": "System & Telemetry",
+  "description": "Sovereign cyber-physical telemetry command deck: 60fps 3D orbital constellation of every live port, daemon, thermal zone and repo, Braille/Bayer-8x8 dither HUD, procedural WebAudio sonification, and a SQLite flight recorder with a diff scrubber.",
+  "version": "1.0.0",
+  "github": "",
+  "published": false,
+  "studio_url": "https://zoth.nullai.tech/tools/aether-observatory/"
+ },
+ {
   "id": "adytum-alchemist-ai-workflow",
   "name": "Adytum Planner",
   "category": "Planning",
@@ -255,7 +265,7 @@
   "category": "Autonomous Web",
   "description": "Simple 3-step static template & 1-click Netlify launcher on 127.0.0.1:8092. Pick a ready-made template, preview live, and export HTML/ZIP or deploy to Netlify.",
   "version": "2.5.0",
-  "github": "https://github.com/NullAITech/zoth-webgen",
+  "github": "https://github.com/1nc0gn30/zoth-webgen",
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-webgen/"
  },
@@ -605,7 +615,7 @@
   "category": "Autonomous Web",
   "description": "Flagship Sovereign Full-Stack AI Web & Motion Architect (Zoth Bolt / bolt.diy) on 127.0.0.1:5173. Supports 19+ AI providers, local Ollama & CLI agents (AGY, Hermes, Grok, Claude, OpenCode, Cline, Aider), 6 Motion Edit templates, 200k+ SVG & Pixel Art icons, TUI (`zoth-bolt-tui`), and Electron Desktop app (`zoth-bolt desktop`).",
   "version": "3.5.0",
-  "github": "https://github.com/1nc0gn30/zoth-webgen",
+  "github": "https://github.com/1nc0gn30/bolt.diy",
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-bolt/"
  },
@@ -768,5 +778,35 @@
   "github": "https://github.com/NullAITech/zoth-studio-v2",
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/zothnet/"
+ },
+ {
+  "id": "creatorplaybooks",
+  "name": "CreatorPlaybooks",
+  "category": "Education & Growth",
+  "description": "Curated reading lists, tactical playbooks, and business mental models from top creators and operators with zero-tracking client-side search on :5185.",
+  "version": "1.0.0",
+  "github": "https://github.com/1nc0gn30/creatorplaybooks",
+  "published": true,
+  "studio_url": "https://zoth.nullai.tech/tools/creatorplaybooks/"
+ },
+ {
+  "id": "zoth-obsidian-tracker",
+  "name": "Zoth Obsidian Tracker",
+  "category": "Swarm & Core",
+  "description": "Sovereign Second Brain vault explorer, 5 Ecosystem Pillars, 7-APK Master Roadmap, and 80-tool verification matrix with live screenrecordings on :8151.",
+  "version": "1.2.0",
+  "github": "https://github.com/1nc0gn30/zoth-obsidian-tracker",
+  "published": false,
+  "studio_url": "https://zoth.nullai.tech/tools/zoth-obsidian-tracker/"
+ },
+ {
+  "id": "zoth-x-connector",
+  "name": "Zoth X Connector",
+  "category": "Swarm & Core",
+  "description": "Sovereign local X (Twitter) multi-account API controller, persistent systemd timer scheduler, Zoth Vault OAuth configurator, and live campaign workstation on :8152.",
+  "version": "1.0.0",
+  "github": "https://github.com/1nc0gn30/zoth-x-connector",
+  "published": true,
+  "studio_url": "https://zoth.nullai.tech/tools/zoth-x-connector/"
  }
 ]

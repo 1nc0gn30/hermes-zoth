@@ -41,7 +41,7 @@ SERVICES = [
 ]
 
 
-# Repos the plugin will clone. Both are Neal Frazier / NullAITech accounts.
+# Repos the plugin will clone. Both are 1nc0gn30 (Zoth Studio) accounts.
 ALLOWED_OWNERS = {"nullaitech", "1nc0gn30"}
 # Repos that hold many tools; pulling one of these fetches the whole project.
 MONOREPOS = {"zoth-studio-v2", "zoth-os"}
@@ -584,7 +584,7 @@ ECOSYSTEM_PRODUCTS = [
     {
         "id": "1nc0gn30",
         "name": "1nc0gn30 · World of Zoth (Sovereign Creator & Open-Source Hub)",
-        "domain": "https://nealfrazier.tech",
+        "domain": "https://1nc0gn30.si",
         "github": "https://github.com/1nc0gn30",
         "workspace_paths": ["/home/zoth/Desktop/world-of-zoth"],
         "public_dir": "/home/zoth/Desktop/world-of-zoth",
