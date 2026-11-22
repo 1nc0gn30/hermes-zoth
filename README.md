@@ -2,7 +2,7 @@
 
 **Zoth Studio + ZOTHOS for [Hermes Agent](https://github.com/NousResearch/hermes-agent).**
 
-Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.nullai.tech), a collection of 71 in-browser developer, security, agent-safety and creator tools (59 with a public GitHub source), and with the local Zoth services that run on **ZOTHOS** ("Zoth O-S"), the Debian-based AI Linux distro, or on any machine with Zoth installed.
+Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.nullai.tech), a collection of 81 in-browser developer, security, agent-safety and creator tools (76 with a public GitHub source), and with the local Zoth services that run on **ZOTHOS** ("Zoth O-S"), the Debian-based AI Linux distro, or on any machine with Zoth installed.
 
 > Independent community plugin by 1nc0gn30 (Zoth Studio). Not affiliated with or endorsed by Nous Research.
 
@@ -11,7 +11,7 @@ Gives Hermes four tools and a skill for working with [Zoth Studio](https://zoth.
 ```bash
 hermes plugins install https://github.com/1nc0gn30/hermes-zoth
 hermes plugins enable zoth
-hermes plugins list | grep zoth      # ✓ zoth 1.1.5 (4 tools)
+hermes plugins list | grep zoth      # ✓ zoth 1.1.6 (4 tools)
 ```
 
 Or copy the folder to `~/.hermes/plugins/zoth/` and run `hermes plugins enable zoth`.
@@ -139,6 +139,10 @@ The script keeps only public fields and checks that every Studio page answers wi
 - **Status checks:** run in parallel with a 4 s total budget; responses are capped at 64 KB. `up: true` means a TCP connection was accepted, not that the service is healthy.
 
 ## Changelog
+
+### 1.1.6
+
+- Catalog resynced from Zoth Studio: 81 tools, 76 with a public repo. `anderson-security-sentinel` and `wcag-contrast-guard` are now private and `zoth-obsidian-tracker` has no public repo, so all three are marked unpublished and `zoth_pull_tool` refuses them. `aether-observatory` has no repo yet and is also unpublished. No code changes.
 
 ### 1.1.5
 

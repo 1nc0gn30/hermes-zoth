@@ -237,7 +237,7 @@ def test_z01_category_filtering():
     # Exact category filter
     r1 = json.loads(tools.studio_search({"category": "Security & Recon"}))
     assert r1["ok"] is True
-    assert r1["count"] == 9
+    assert r1["count"] == sum(t["category"] == "Security & Recon" for t in tools._tools())
     assert all(t["category"] == "Security & Recon" for t in r1["results"])
 
     # Family prefix filter: 'security' matches all 4 Security & * categories
@@ -425,7 +425,7 @@ def test_third_party_and_monorepo_flags(tmp_path, monkeypatch):
     assert r["error"]["code"] == "third_party_repo"
     w = json.loads(tools.studio_tool({"tool_id": "hexstrike-arsenal"}))
     assert w["pull_command"] == "npx @nullaitech/zoth pull NullAI-HexStrike-AI-Terminal"
-    assert json.loads(tools.studio_tool({"tool_id": "bolt.diy"}))["pull_command"] is None  # 1nc0gn30 repo: not in the CLI list
+    assert json.loads(tools.studio_tool({"tool_id": "jwt-inspector-guard"}))["pull_command"] is None  # 1nc0gn30 repo: not in the CLI list
     m = json.loads(tools.studio_tool({"tool_id": "webmcp-protocol-inspector"}))
     assert m["monorepo"] is True and m["third_party"] is False
     s = json.loads(tools.studio_search({"query": "ghidra"}))["results"][0]
