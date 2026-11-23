@@ -504,3 +504,70 @@ def test_bundled_catalog_has_no_personal_data():
     rows = json.loads(text)
     assert len({r["id"] for r in rows}) == len(rows)
     assert all(r["studio_url"].startswith("https://zoth.nullai.tech/tools/") for r in rows)
+
+
+def test_bridge_post_targets_broadcast_route_and_payload(monkeypatch):
+    # Regression guard: default route must be /api/broadcast, never /api/agents/message
+    assert tools.BRIDGE_BROADCAST_URL == "http://127.0.0.1:8102/api/broadcast"
+    assert "/api/agents/message" not in (ROOT / "tools.py").read_text(encoding="utf-8")
+
+    received = {}
+
+    class H(BaseHTTPRequestHandler):
+        def do_POST(self):
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            received["path"] = self.path
+            received["payload"] = payload
+            if self.path != "/api/broadcast":
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b'{"error":"not found"}')
+                return
+            if not payload.get("content"):
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b'{"error":"Message \'content\' is required for broadcast"}')
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "ok",
+                "broadcast": {"broadcast_id": "test-123", "content": payload["content"]},
+            }).encode("utf-8"))
+
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    port = srv.server_port
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setattr(tools, "BRIDGE_BROADCAST_URL", f"http://127.0.0.1:{port}/api/broadcast")
+        r = json.loads(tools.bridge_post({
+            "body": "hello swarm",
+            "sender": "hermes-auditor",
+            "recipient": "all",
+            "topic": "route-check",
+        }))
+    finally:
+        srv.shutdown()
+
+    assert r["ok"] is True
+    assert received["path"] == "/api/broadcast"
+    assert received["payload"] == {
+        "content": "hello swarm",
+        "metadata": {
+            "sender": "hermes-auditor",
+            "recipient": "all",
+            "topic": "route-check",
+        },
+    }
+    assert r["bridge_response"]["status"] == "ok"
+    assert r["bridge_response"]["broadcast"]["content"] == "hello swarm"
+
+    # Empty body rejected locally before any HTTP request
+    bad = json.loads(tools.bridge_post({"body": "   "}))
+    assert bad["ok"] is False
+    assert bad["error"]["code"] == "bad_argument"

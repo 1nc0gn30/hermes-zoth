@@ -624,6 +624,9 @@ GROWTH_CHANNELS = [
 ]
 
 
+BRIDGE_BROADCAST_URL = "http://127.0.0.1:8102/api/broadcast"
+
+
 def bridge_post(args: dict, **kwargs) -> str:
     try:
         body = str(args.get("body") or "").strip()
@@ -633,14 +636,15 @@ def bridge_post(args: dict, **kwargs) -> str:
         recipient = str(args.get("recipient") or "broadcast").strip()
         topic = str(args.get("topic") or "hermes-swarm-update").strip()
         payload = json.dumps({
-            "sender": sender,
-            "recipient": recipient,
-            "subject": topic,
-            "topic": topic,
-            "body": body,
+            "content": body,
+            "metadata": {
+                "sender": sender,
+                "recipient": recipient,
+                "topic": topic,
+            },
         }).encode("utf-8")
         req = urllib.request.Request(
-            "http://127.0.0.1:8102/api/agents/message",
+            BRIDGE_BROADCAST_URL,
             data=payload,
             headers={"Content-Type": "application/json"},
             method="POST",
