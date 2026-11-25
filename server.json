@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.nullaitech/hermes-zoth",
-  "description": "Zoth Studio tool catalog, ZOTHOS services, and NullAI ecosystem bridge for Hermes Agent.",
-  "version": "1.2.0",
+  "description": "85-tool Zoth Studio catalog, ZOTHOS loopback services, and Sovereign Agent Bridge plugin for Hermes Agent.",
+  "version": "1.3.0",
   "title": "hermes-zoth",
   "websiteUrl": "https://github.com/1nc0gn30/hermes-zoth",
   "repository": {

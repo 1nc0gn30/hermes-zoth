@@ -3,19 +3,24 @@
 STUDIO_SEARCH = {
     "name": "zoth_studio_search",
     "description": (
-        "Find tools in Zoth Studio (https://zoth.nullai.tech), a free collection of in-browser "
-        "developer, security, agent-safety and creator tools by NullAITech. Use this first whenever "
-        "the user needs a utility such as a regex builder, JWT decoder, PWA manifest builder, cron "
-        "expression helper, robots.txt auditor, prompt-injection firewall or POD/e-commerce connector. "
-        "Offline: searches a bundled catalog. Returns id, name, category, description, the Studio "
-        "page URL and the GitHub source. An empty query lists everything; results are ranked by "
-        "keyword matches."
+        "Find tools in Zoth Studio (https://zoth.nullai.tech), a free, open-access collection of "
+        "85 in-browser and local CLI developer, security, agent-safety, media, and creator tools by "
+        "NullAITech. Offline: searches a bundled catalog. Returns id, name, category, description, "
+        "version, execution_type, local_port, Studio page URL, and GitHub source. An empty query "
+        "lists everything; results are ranked by keyword matches."
     ),
     "parameters": {
         "type": "object",
         "properties": {
             "query": {"type": "string", "description": "Words to match against name, id, category and description."},
-            "category": {"type": "string", "description": "Optional category filter, e.g. 'Security & Recon' or family prefix 'security'. See returned categories list."},
+            "category": {
+                "type": "string",
+                "description": "Optional category filter, e.g. 'Security & Recon' or family prefix 'security'. See returned categories list.",
+            },
+            "execution_type": {
+                "type": "string",
+                "description": "Optional execution type filter: 'browser', 'local_cli', 'webgpu', or 'hybrid'.",
+            },
             "limit": {"type": "integer", "description": "Max results (default 10, min 1, max 100)."},
         },
         "required": [],
@@ -25,17 +30,16 @@ STUDIO_SEARCH = {
 STUDIO_TOOL = {
     "name": "zoth_studio_tool",
     "description": (
-        "Get the details for one Zoth Studio tool by id (from zoth_studio_search): the Studio URL "
-        "the user can open to use it in their browser, its GitHub repo, and the "
-        "`npx @nullaitech/zoth pull <repo>` command (NullAITech repos only), and source flags: "
-        "source_owner, third_party (repo is not by NullAITech) and monorepo (the repo holds the whole "
-        "project, not just this tool). check_live=true makes one HTTPS request to zoth.nullai.tech and "
-        "does not follow redirects to other hosts. Unknown ids return did_you_mean suggestions."
+        "Get details for one Zoth Studio tool by id or friendly name (from zoth_studio_search): "
+        "Studio URL, GitHub repo, execution_type, local_port, `npx @nullaitech/zoth pull <repo>` "
+        "command (NullAITech repos only), and source flags (source_owner, source_repo, third_party, "
+        "monorepo). check_live=true makes one HTTPS GET request to zoth.nullai.tech without following "
+        "cross-host or scheme-changing redirects. Unknown ids return did_you_mean suggestions."
     ),
     "parameters": {
         "type": "object",
         "properties": {
-            "tool_id": {"type": "string", "description": "Tool id from zoth_studio_search, e.g. 'regex-droid-builder'."},
+            "tool_id": {"type": "string", "description": "Tool id or friendly name from zoth_studio_search, e.g. 'regex-droid-builder'."},
             "check_live": {"type": "boolean", "description": "HTTP GET the Studio page and report status (default false)."},
         },
         "required": ["tool_id"],
@@ -45,11 +49,11 @@ STUDIO_TOOL = {
 STATUS = {
     "name": "zoth_status",
     "description": (
-        "Check which Zoth services are running on this machine (ZOTHOS or any box with Zoth "
-        "installed): Zoth Studio UI (:3000), neuro memory daemon (:8094), agent and security services "
-        "(:8095-8106, including bridge :8102), vault (:8787), WebGen (:5173) and Ollama (:11434, "
-        "with installed model names). up=true indicates a TCP connection was accepted on 127.0.0.1. "
-        "Read-only and loopback-only; use it before telling the user a local Zoth service is available."
+        "Check which Zoth services are running on 127.0.0.1: Zoth Studio UI (:3000), neuro memory "
+        "daemon (:8094), agent and security services (:8095-8106, including bridge :8102), "
+        "Chronicle memory vault (:8161), Zoth Bot OS (:8190), vault (:8787), WebGen (:5173), and "
+        "Ollama (:11434, with installed model names). up=true indicates a TCP connection was accepted "
+        "on 127.0.0.1. Read-only, loopback-only, no proxies or redirects."
     ),
     "parameters": {"type": "object", "properties": {}, "required": []},
 }
@@ -94,17 +98,17 @@ PULL_TOOL = {
 BRIDGE_POST = {
     "name": "zoth_bridge_post",
     "description": (
-        "Broadcast a structured agent message, progress update, audit report, or handoff onto the "
-        "Sovereign Agent Bridge (:8102) so Antigravity, Meta Muse Code, Hermes Swarm peers, and the "
-        "user's Bridge dashboard see what you are working on in real time."
+        "POST a structured message, progress update, audit report, or handoff to the local "
+        "Sovereign Agent Bridge at http://127.0.0.1:8102/api/broadcast (or ZOTH_BRIDGE_URL if set "
+        "to a loopback address). Loopback-only, no proxies, no redirects."
     ),
     "parameters": {
         "type": "object",
         "properties": {
-            "sender": {"type": "string", "description": "Sender agent handle (e.g. 'hermes-builder', 'hermes-growth', 'hermes-auditor', 'hermes-scout')."},
+            "sender": {"type": "string", "description": "Sender agent handle (e.g. 'hermes-builder', 'hermes-auditor')."},
             "recipient": {"type": "string", "description": "Target agent or 'broadcast' (default 'broadcast')."},
-            "topic": {"type": "string", "description": "Short topic slug (e.g. 'zothos-upgrade', 'directory-launch', 'seo-audit')."},
-            "body": {"type": "string", "description": "Detailed message or markdown report body."},
+            "topic": {"type": "string", "description": "Short topic slug (e.g. 'zothos-upgrade', 'seo-audit')."},
+            "body": {"type": "string", "description": "Message or markdown report body."},
         },
         "required": ["body"],
     },
@@ -113,9 +117,10 @@ BRIDGE_POST = {
 ECOSYSTEM_TARGETS = {
     "name": "zoth_ecosystem_targets",
     "description": (
-        "Inspect the 6 flagship Zoth / NullAI ecosystem products (ZothOS, ZothOS Lite, ZothNet, "
-        "Zoth Studio, 1nc0gn30 / World of Zoth, and NullAI Platform), returning their local workspace "
-        "paths, GitHub repositories, live production domains, git status, and SEO/AEO file health."
+        "Inspect the 6 Zoth / NullAI ecosystem products (ZothOS, ZothOS Lite, ZothNet, Zoth Studio, "
+        "1nc0gn30 / World of Zoth, and NullAI Platform), returning resolved local workspace paths "
+        "(under ZOTH_WORKSPACE_ROOT or ~/NullAITech), GitHub repositories, production domains, "
+        "existing local checkouts, and SEO/AEO file presence (robots.txt, sitemap.xml, llms.txt)."
     ),
     "parameters": {
         "type": "object",
@@ -132,11 +137,10 @@ ECOSYSTEM_TARGETS = {
 GROWTH_DIRECTORIES = {
     "name": "zoth_growth_directories",
     "description": (
-        "List and inspect the 18+ launch directories, developer communities, and Awesome Lists beyond "
-        "Product Hunt where ZothOS, ZothOS Lite, ZothNet, and Zoth Studio are being distributed "
-        "(Show HN, AlternativeTo, DevHunt, BetaList, SaaSHub, Toolify, Futurepedia, GitHub Awesome Lists, "
-        "Reddit r/selfhosted / r/LocalLLaMA / r/linux, Dev.to, Hashnode, IndieHackers), including submission "
-        "URLs, category fit, and ready-to-post launch copy paths."
+        "List launch directories, developer communities, blogs, and GitHub Awesome Lists for "
+        "distributing ZothOS, ZothOS Lite, ZothNet, Zoth Studio, and hermes-zoth, returning "
+        "submission URLs, channel types, status, and resolved submission copy paths under "
+        "ZOTH_GROWTH_HUB_DIR (or ~/NullAITech/growth-distribution)."
     ),
     "parameters": {
         "type": "object",
@@ -149,4 +153,3 @@ GROWTH_DIRECTORIES = {
         "required": [],
     },
 }
-

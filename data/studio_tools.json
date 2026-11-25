@@ -6,6 +6,8 @@
   "description": "Contained Hermes + AGY conversation consolidation, friction/pattern intelligence, live continuity recall, and personal prompt playbook workstation.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/zoth-memory-vault",
+  "execution_type": "local_cli",
+  "local_port": 8161,
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-memory-vault/"
  },
@@ -16,6 +18,8 @@
   "description": "Ultra-low latency Google Pixel screenshare, camera bridge, and sovereign wireless ADB mirroring workstation over Tailscale mesh.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/pixel-cast",
+  "execution_type": "local_cli",
+  "local_port": 8148,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/pixel-cast/"
  },
@@ -25,8 +29,10 @@
   "category": "System & Telemetry",
   "description": "Sovereign cyber-physical telemetry command deck: 60fps 3D orbital constellation of every live port, daemon, thermal zone and repo, Braille/Bayer-8x8 dither HUD, procedural WebAudio sonification, and a SQLite flight recorder with a diff scrubber.",
   "version": "1.0.0",
-  "github": "",
-  "published": false,
+  "github": "https://github.com/NullAITech/zoth-studio-v2",
+  "execution_type": "local_cli",
+  "local_port": 8160,
+  "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/aether-observatory/"
  },
  {
@@ -36,6 +42,8 @@
   "description": "The 22-key hermetic planning rite. Intention, five-minute incubation, and a local-model gate.",
   "version": "1.0.0",
   "github": "https://github.com/NullAITech/adytum-alchemist-ai-workflow",
+  "execution_type": "local_cli",
+  "local_port": 8135,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/adytum-alchemist-ai-workflow/"
  },
@@ -46,6 +54,8 @@
   "description": "Archon Orchestrator core agent for local zero-telemetry task dispatching and subagent delegation.",
   "version": "3.0.0",
   "github": "https://github.com/NullAITech/azoth-local-agent",
+  "execution_type": "local_cli",
+  "local_port": 8136,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/azoth-local-agent/"
  },
@@ -56,6 +66,8 @@
   "description": "E2EE WebSocket signal protocol and Simplex peer mesh IPC communicator.",
   "version": "3.2.0",
   "github": "https://github.com/NullAITech/sovereign-agent-bridge",
+  "execution_type": "local_cli",
+  "local_port": 8102,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/sovereign-agent-bridge/"
  },
@@ -66,6 +78,8 @@
   "description": "Biological-fidelity memory substrate with 3D Cosmic Nebula and federated Zoth Memory viewer. CLI zoth-memory / zoth-neuro-memory.",
   "version": "2.8.0",
   "github": "https://github.com/NullAITech/neuro-memory-daemon",
+  "execution_type": "local_cli",
+  "local_port": 8094,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/neuro-memory-daemon/"
  },
@@ -76,6 +90,8 @@
   "description": "Debian 13 + KDE Plasma 6.3 sovereign AI distro. Kali + Parrot parity, Studio v2, Ollama on 127.0.0.1, 163 MCP servers all off. Eight named virtual desktops; zoth-workspaces puts a Samsung / DP monitor on its own screen. Live users zoth / azoth / root password zoth.",
   "version": "3.4.0",
   "github": "https://github.com/NullAITech/zoth-os",
+  "execution_type": "local_cli",
+  "local_port": 8137,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-os/"
  },
@@ -86,6 +102,8 @@
   "description": "100% in-browser HNSW skip-graph vector database, IVF clustering, Okapi BM25 lexical engine, HNSW graph brand media, and RRF hybrid search simulator.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/vector-search-engine",
+  "execution_type": "browser",
+  "local_port": 8121,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/vector-search-engine/"
  },
@@ -96,6 +114,8 @@
   "description": "100% in-browser multi-source deep research agent with grounded inline citations, quantitative benchmark verification, research DAG brand media, and consensus matrices.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/deepsearch-research-agent",
+  "execution_type": "browser",
+  "local_port": 8122,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/deepsearch-research-agent/"
  },
@@ -106,6 +126,8 @@
   "description": "100% in-browser prompt engineering and meta-optimization studio with real-time AST linting, multi-model rewrites (Claude, ChatGPT, Gemini), tri-model constellation brand media, and 100% free open-access execution.",
   "version": "3.2.0",
   "github": "https://github.com/1nc0gn30/promptmaster-studio",
+  "execution_type": "browser",
+  "local_port": 8123,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/promptmaster-studio/"
  },
@@ -116,6 +138,8 @@
   "description": "Autonomous penetration audit suite, CVE matrix inspector, and exploit payload lab.",
   "version": "3.1.0",
   "github": "https://github.com/NullAITech/NullAI-HexStrike-AI-Terminal",
+  "execution_type": "local_cli",
+  "local_port": 8138,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/hexstrike-arsenal/"
  },
@@ -126,6 +150,8 @@
   "description": "Argon2id + AES-256-GCM hardware vault for zero-cloud secret storage, Shamir quorum splitting, and leak scanning.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/envguard-secrets-vault",
+  "execution_type": "browser",
+  "local_port": 8088,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/envguard-secrets-vault/"
  },
@@ -136,6 +162,8 @@
   "description": "Zero-cloud in-browser JWT token decoder, cryptographic signature validator, HS256 dictionary cracker, DPoP proofer, and auth claim auditor.",
   "version": "2.6.0",
   "github": "https://github.com/1nc0gn30/jwt-inspector-guard",
+  "execution_type": "browser",
+  "local_port": 8124,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/jwt-inspector-guard/"
  },
@@ -146,6 +174,8 @@
   "description": "100% in-browser Shannon entropy waveform visualizer, 32-byte sliding window, recursive payload deobfuscator, automated multi-engine WAF rule generator, Shannon waveform brand media, and 100% free & open-access with optional Buy Us a Coffee & Solana tip support.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/payload-entropy-studio",
+  "execution_type": "browser",
+  "local_port": 8080,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/payload-entropy-studio/"
  },
@@ -156,6 +186,8 @@
   "description": "100% in-browser security headers auditor, TLS cert inspector, CSP Level 3 generator, native Web Crypto SHA-384 SRI hasher, security defense shield brand media, and 100% free & open-access with optional Buy Us a Coffee & Solana tip support.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/web-security-guard",
+  "execution_type": "browser",
+  "local_port": 8125,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/web-security-guard/"
  },
@@ -166,6 +198,8 @@
   "description": "100% in-browser multi-framework project scaffolder (13 frameworks), AST component transpiler, and client-side PKZIP compressor.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/polyglot-framework-exporter",
+  "execution_type": "browser",
+  "local_port": 8126,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/polyglot-framework-exporter/"
  },
@@ -176,6 +210,8 @@
   "description": "100% in-browser Answer Engine Optimization (AEO/GEO) workbench, Schema.org JSON-LD @graph generator, live semantic crawler, and MCP export with 100% free open-access execution.",
   "version": "1.4.0",
   "github": "https://github.com/1nc0gn30/aeo-graph-engine",
+  "execution_type": "browser",
+  "local_port": 8127,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/aeo-graph-engine/"
  },
@@ -186,6 +222,8 @@
   "description": "100% in-browser Core Web Vitals diagnostic engine, client DOM AST speed transformer, PWA manifest builder, tachometer gauge brand media, and 100% free & open-access with optional Buy Us a Coffee & Solana tip support.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/cwv-speed-engine",
+  "execution_type": "browser",
+  "local_port": 8128,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/cwv-speed-engine/"
  },
@@ -196,6 +234,8 @@
   "description": "100% in-browser touchless gesture control, 21-joint 3D hand tracking, spatial air drawing, and Model Context Protocol (MCP) agent connectivity. Free to use; tips optional.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/vision-gesture-control",
+  "execution_type": "browser",
+  "local_port": 8089,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/vision-gesture-control/"
  },
@@ -206,6 +246,8 @@
   "description": "100% in-browser OSINT reconnaissance, passive DNS discovery, tech stack fingerprinting, OSINT radar brand media, and executive lead intelligence with zero cloud egress.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/subsweep-lead-scanner",
+  "execution_type": "browser",
+  "local_port": 8090,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/subsweep-lead-scanner/"
  },
@@ -216,6 +258,8 @@
   "description": "100% in-browser social content formatting, viral thread splitter, virality scoring, MCP AI agent client hub, and procedural omni-beacon brand media with 100% free open-access execution.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/omnipost-social-engine",
+  "execution_type": "browser",
+  "local_port": 8091,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/omnipost-social-engine/"
  },
@@ -226,6 +270,8 @@
   "description": "High-precision cron AST parser, 24x7 rhythm heatmap, countdown timeline, multi-dialect transpiler across K8s, GitHub Actions, AWS EventBridge, and Systemd with procedural chronometer brand media and 100% free open-access execution.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/cron-rhythm-studio",
+  "execution_type": "browser",
+  "local_port": 5174,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/cron-rhythm-studio/"
  },
@@ -236,6 +282,8 @@
   "description": "100% in-browser certification DAG solver, career roadmap planner, and study guide generator with 137 credentials, procedural DAG brand media, and 100% free open-access execution.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/certpath-roadmap-studio",
+  "execution_type": "browser",
+  "local_port": 8093,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/certpath-roadmap-studio/"
  },
@@ -246,6 +294,8 @@
   "description": "100% in-browser Progressive Web App manifest generator, ServiceWorker compiler, offline cache architect, and production PWA ZIP bundle exporter. Free to use; tips optional.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/pwa-manifest-builder",
+  "execution_type": "browser",
+  "local_port": 8100,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/pwa-manifest-builder/"
  },
@@ -256,6 +306,8 @@
   "description": "100% in-browser visual regular expression builder, AST breakdown, railroad vector diagrams, multi-language code generator, and static ReDoS vulnerability guardian. Free to use; tips optional.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/regex-droid-builder",
+  "execution_type": "browser",
+  "local_port": 8101,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/regex-droid-builder/"
  },
@@ -266,6 +318,8 @@
   "description": "100% in-browser visual database ERD studio and schema transpiler (TypeScript, Pydantic, Prisma, SQL DDL, GraphQL). Free to use; tips optional.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/schema-illustrator-studio",
+  "execution_type": "browser",
+  "local_port": 8099,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/schema-illustrator-studio/"
  },
@@ -276,6 +330,8 @@
   "description": "The real bolt.diy fork, Zoth edition: full-stack AI workbench on 127.0.0.1:5173 with 19+ AI providers, local Ollama, CLI agents (AGY, Hermes, Grok, Claude), MCP tool access, and 1-click Netlify deploy. Legacy alias of zoth-bolt — same fork, same port.",
   "version": "3.5.0",
   "github": "https://github.com/1nc0gn30/bolt.diy",
+  "execution_type": "local_cli",
+  "local_port": 5173,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-webgen/"
  },
@@ -286,6 +342,8 @@
   "description": "21-terminal autonomous agent multiplexer daemon with hot-swappable AI harnesses, PWD control, and SSE telemetry.",
   "version": "2.5.0",
   "github": "https://github.com/NullAITech/zoth-swarm-multiplexer",
+  "execution_type": "local_cli",
+  "local_port": 8141,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-swarm-multiplexer/"
  },
@@ -296,6 +354,8 @@
   "description": "In-browser Model Context Protocol (MCP) JSON-RPC 2.0 inspector, tool schema dispatcher, and Zoth OS bare-metal video showcase.",
   "version": "1.0.0",
   "github": "https://github.com/NullAITech/zoth-studio-v2",
+  "execution_type": "webgpu",
+  "local_port": 8142,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/webmcp-protocol-inspector/"
  },
@@ -306,6 +366,8 @@
   "description": "Autonomous biometric laptop perimeter defense, WiFi X-Ray RF tomography, USB tripwire guard, and thermal FLIR optics. Free to use; tips optional.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/anderson-security-sentinel",
+  "execution_type": "browser",
+  "local_port": 8103,
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/anderson-security-sentinel/"
  },
@@ -316,6 +378,8 @@
   "description": "100% in-browser WebGL 3D coin, medallion, and relief badge generator with real-time PBR metallic shaders, watertight STL/OBJ export, and 100% free & open-access with optional Buy Us a Coffee & Solana tip support.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/badge3d-coin-generator",
+  "execution_type": "browser",
+  "local_port": 8084,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/badge3d-coin-generator/"
  },
@@ -326,6 +390,8 @@
   "description": "100% in-browser RFC 9309 robots.txt parser, AI crawler simulator (Googlebot, GPTBot, ClaudeBot, PerplexityBot, Applebot), Pro Drift Shield, and 100% free & open-access with optional Buy Us a Coffee & Solana tip support.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/robots-txt-auditor",
+  "execution_type": "browser",
+  "local_port": 8086,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/robots-txt-auditor/"
  },
@@ -336,6 +402,8 @@
   "description": "One studio writes the finished page for a trade and a city. 1,000 localized service pages across 20 trades and 50 mid-size cities with live customizer, multi-mipmap ICO, Pro bundle export, and 100% free & open-access with optional Buy Us a Coffee & Solana tip support.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/city-desk",
+  "execution_type": "browser",
+  "local_port": 8087,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/city-desk/"
  },
@@ -346,6 +414,8 @@
   "description": "Autonomous zero-dependency network interceptor, TLS SNI sniffer, kinetic egress radar, and kernel quarantine. Free to use; tips optional.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-egress-sentinel",
+  "execution_type": "browser",
+  "local_port": 8095,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-egress-sentinel/"
  },
@@ -356,6 +426,8 @@
   "description": "Autonomous offline API mock server & deterministic replay twin for AI agents ($0 token spend in CI/CD) with OpenAPI/HAR ingestion, Python standard library backend, and 100% free open access.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-mock-twin",
+  "execution_type": "browser",
+  "local_port": 8097,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-mock-twin/"
  },
@@ -366,6 +438,8 @@
   "description": "Autonomous inline prompt injection defense, PII redactor, and threat radar for AI agents ($0 token leak) with real-time SSE stream, AST de-obfuscation, and 100% free open access.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-prompt-firewall",
+  "execution_type": "browser",
+  "local_port": 8098,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-prompt-firewall/"
  },
@@ -376,6 +450,8 @@
   "description": "WCAG 2.2 Level AA/AAA, APCA contrast algorithm, colorblindness simulation, focus indicators, and harmonic palette generation.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/wcag-contrast-guard",
+  "execution_type": "browser",
+  "local_port": 8150,
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/wcag-contrast-guard/"
  },
@@ -386,6 +462,8 @@
   "description": "Black box flight recorder & time-scrubbing telemetry forensics hub for AI agents with synchronized terminal stream, egress graph, memory engrams, and 100% free open access.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-flight-recorder",
+  "execution_type": "browser",
+  "local_port": 8104,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-flight-recorder/"
  },
@@ -396,6 +474,8 @@
   "description": "Autonomous kernel enclave sandbox, resource quota manager, and secret stripping engine with 100% free open-access loopback execution.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-capsule-jail",
+  "execution_type": "browser",
+  "local_port": 8105,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-capsule-jail/"
  },
@@ -406,6 +486,8 @@
   "description": "Autonomous capability leaser, permission broker, and OWASP LLM manifest security auditor with 100% free open-access loopback execution.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-policy-auditor",
+  "execution_type": "browser",
+  "local_port": 8106,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-policy-auditor/"
  },
@@ -416,6 +498,8 @@
   "description": "Autonomous 300 DPI canvas generator, photorealistic mockup engine, and Etsy SEO listing synthesizer. Free to use; tips optional.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/etsy-pod-forge",
+  "execution_type": "browser",
+  "local_port": 8107,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/etsy-pod-forge/"
  },
@@ -426,6 +510,8 @@
   "description": "Etsy Open API v3 & Antigravity MCP bridge with 13-tag SEO auditor, fee/profit calculator, and Printify payload generator.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/etsy-connector",
+  "execution_type": "browser",
+  "local_port": 8108,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/etsy-connector/"
  },
@@ -436,6 +522,8 @@
   "description": "Zero-dependency real-time stdio/SSE traffic sniffer, token weight auditor, and visual playground for Model Context Protocol.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/mcp-lens",
+  "execution_type": "browser",
+  "local_port": 8109,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/mcp-lens/"
  },
@@ -446,6 +534,8 @@
   "description": "Autonomous zero-dependency spending guardrail, real-time token cost circuit breaker, and runaway loop interceptor.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-budget-sentinel",
+  "execution_type": "browser",
+  "local_port": 8110,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-budget-sentinel/"
  },
@@ -456,6 +546,8 @@
   "description": "Autonomous zero-dependency Shodan OSINT tactical radar, 3D kinetic planetary attack surface reconnaissance, and threat scoring.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-gods-eye",
+  "execution_type": "browser",
+  "local_port": 8112,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-gods-eye/"
  },
@@ -466,6 +558,8 @@
   "description": "Shopify GraphQL Admin API & POD sync engine with 1-click Etsy listing transpiler, net profit simulator, and Antigravity MCP suite.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/shopify-connector",
+  "execution_type": "browser",
+  "local_port": 8113,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/shopify-connector/"
  },
@@ -476,6 +570,8 @@
   "description": "Autonomous zero-dependency Printify Open API v1 connector, 20% Premium margin calculator, artwork DPI auditor, and Antigravity MCP suite.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/printify-connector",
+  "execution_type": "browser",
+  "local_port": 8115,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/printify-connector/"
  },
@@ -486,6 +582,8 @@
   "description": "Autonomous zero-dependency Gelato Open API v2 connector, localized 32-country print routing optimizer, multi-currency margin engine, and Antigravity MCP suite.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/gelato-connector",
+  "execution_type": "browser",
+  "local_port": 8116,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/gelato-connector/"
  },
@@ -496,6 +594,8 @@
   "description": "Autonomous sovereign real-time voice cockpit, live audio WebSocket streaming, multi-persona voice synthesizer, and zero-telemetry call protocol.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/agent-voice-call",
+  "execution_type": "browser",
+  "local_port": 8114,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/agent-voice-call/"
  },
@@ -506,6 +606,8 @@
   "description": "Multi-channel POD order router dynamically comparing Printify (:8115) and Gelato (:8116) on landed cost, domestic proximity, delivery speed, and tariff avoidance.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/pod-smart-router",
+  "execution_type": "browser",
+  "local_port": 8117,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/pod-smart-router/"
  },
@@ -516,6 +618,8 @@
   "description": "High-Res 300 DPI multi-ratio wall art pack generator (2:3, 3:4, 4:5, 11:14, ISO) for Etsy & Shopify digital downloads (98% margin) with 20MB multi-zip splitting.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/digital-asset-forge",
+  "execution_type": "browser",
+  "local_port": 8118,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/digital-asset-forge/"
  },
@@ -526,6 +630,8 @@
   "description": "Autonomous photorealistic mockup studio with 60fps Lumen Matrix, fabric ink blending, and Etsy 2026 photo standards compliance auditor.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/pod-mockup-forge",
+  "execution_type": "browser",
+  "local_port": 8119,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/pod-mockup-forge/"
  },
@@ -536,6 +642,8 @@
   "description": "Autonomous real-time profit sentinel, break-even solver, and 2026 fee simulator across Etsy (Organic & 15% Ads), Shopify, and TikTok Shop.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/pod-margin-sentinel",
+  "execution_type": "browser",
+  "local_port": 8120,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/pod-margin-sentinel/"
  },
@@ -546,6 +654,8 @@
   "description": "100% in-browser acoustic cryptography, PCM audio LSB steganography, DTMF Goertzel decoder, ITU Morse synthesizer, and ultrasonic BFSK air-gap modem.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/audiocipher-stego-engine",
+  "execution_type": "browser",
+  "local_port": 8096,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/audiocipher-stego-engine/"
  },
@@ -556,6 +666,8 @@
   "description": "100% in-browser L-System fractal synthesizer, turtle geometry studio, and physical CNC pen-plotter G-Code and SVG vector exporter. Free to use; tips optional.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/cyber-turtle-studio",
+  "execution_type": "browser",
+  "local_port": 8129,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/cyber-turtle-studio/"
  },
@@ -566,6 +678,8 @@
   "description": "100% in-browser parametric video datamosh synthesizer, H.264 I-frame drop corruption, CRT scanlines, procedural cassette brand media, and live camera mosh buffer with zero paywalls.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/datamosh-glitch-studio",
+  "execution_type": "browser",
+  "local_port": 8081,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/datamosh-glitch-studio/"
  },
@@ -576,6 +690,8 @@
   "description": "100% in-browser WebGL mathematical 3D geometry engine, 4D Tesseract, parametric surfaces, FastMCP server, procedural tesseract brand media, and precision OBJ/STL mesh exporters with zero paywalls.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/nexus-3d-scene-studio",
+  "execution_type": "browser",
+  "local_port": 8082,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/nexus-3d-scene-studio/"
  },
@@ -586,6 +702,8 @@
   "description": "100% in-browser sacred geometry synthesizer, crop circle agro-glyph CAD generator, procedural Metatron brand media, and AutoCAD DXF, Wavefront OBJ, and vector SVG exporter with 100% free open-access execution.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/ufo-sacred-geometry",
+  "execution_type": "browser",
+  "local_port": 8083,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/ufo-sacred-geometry/"
  },
@@ -596,6 +714,8 @@
   "description": "Local video double on GPU; Chatterbox Turbo voice cloning and Wav2Lip photorealistic mouth animation on Quadro P1000 with zero cloud leakage.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/likeness-desk",
+  "execution_type": "local_cli",
+  "local_port": 9395,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/likeness-desk/"
  },
@@ -606,6 +726,8 @@
   "description": "100% in-browser passive domain intelligence & attack surface reconnaissance engine auditing Certificate Transparency logs, DoH DNS records, and SPF/DMARC posture — free to use; optional tips welcome.",
   "version": "2.5.0",
   "github": "https://github.com/NullAITech/osint-scout-skill",
+  "execution_type": "browser",
+  "local_port": 8085,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/osint-scout-skill/"
  },
@@ -616,6 +738,8 @@
   "description": "Sovereign OSINT investigation workstation, 10-module interactive masterclass, subdomain takeover auditing across 23+ SaaS fingerprints, zero-knowledge HIBP k-anonymity breach intel, and MITRE ATT&CK CTI matrix mapping with STIX 2.1 & Obsidian Canvas export.",
   "version": "4.0.0",
   "github": "https://github.com/1nc0gn30/zoth-osint",
+  "execution_type": "hybrid",
+  "local_port": 8149,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-osint/"
  },
@@ -626,6 +750,8 @@
   "description": "Flagship Sovereign Full-Stack AI Web & Motion Architect (Zoth Bolt / bolt.diy) on 127.0.0.1:5173. Supports 19+ AI providers, local Ollama & CLI agents (AGY, Hermes, Grok, Claude, OpenCode, Cline, Aider), 6 Motion Edit templates, 200k+ SVG & Pixel Art icons, TUI (zoth-bolt-tui), and Electron Desktop app (zoth-bolt desktop).",
   "version": "3.5.0",
   "github": "https://github.com/1nc0gn30/bolt.diy",
+  "execution_type": "local_cli",
+  "local_port": 5173,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-bolt/"
  },
@@ -636,6 +762,8 @@
   "description": "Autonomous 23-agent Pantheon society simulation on the Sphere of Zoth Prime. Features Imperator Quests (Ranks I–V), 4 Planetary Decrees, the zero-leak 22-Key Sanctuary, and lightweight BYOK reasoning via DeepSeek Flash through Hermes Agent (Nous Research).",
   "version": "3.0.0",
   "github": "https://github.com/1nc0gn30/zoth-civilization",
+  "execution_type": "local_cli",
+  "local_port": 9393,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-civilization/"
  },
@@ -646,6 +774,8 @@
   "description": "10 master Etsy Print-on-Demand products optimized for 55+ demographic with 62.6% blended profit margin, 13/13 tag sets, and 100% free & open-access with optional Buy Us a Coffee & Solana tip support.",
   "version": "2.5.0",
   "github": "https://github.com/1nc0gn30/storefront-catalog",
+  "execution_type": "local_cli",
+  "local_port": 8143,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/storefront-catalog/"
  },
@@ -656,6 +786,8 @@
   "description": "Zero-egress defensive asset auditor and InternetDB engine. Inspects open ports, CPE software stacks, and confirmed CVE exposures for your infrastructure.",
   "version": "3.5.0",
   "github": "https://github.com/1nc0gn30/shodan-surface-sentinel",
+  "execution_type": "local_cli",
+  "local_port": 8130,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/shodan-surface-sentinel/"
  },
@@ -666,6 +798,8 @@
   "description": "LaurieWired Ghidra Model Context Protocol bridge for autonomous binary decompilation, AST method analysis, and project variable annotation.",
   "version": "3.5.0",
   "github": "https://github.com/LaurieWired/GhidraMCP",
+  "execution_type": "local_cli",
+  "local_port": 8131,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/ghidra-mcp-bridge/"
  },
@@ -676,6 +810,8 @@
   "description": "100% client-side Image/Video/3D-to-ASCII & Sub-Pixel Unicode Braille studio with Sobel directional edge detection (/\\|-), interactive 2D point relighting, CRT phosphor bloom, and 24-bit TrueColor ANSI/HTML/SVG exports.",
   "version": "2.7.0",
   "github": "https://github.com/1nc0gn30/zoth-ascii-magic",
+  "execution_type": "browser",
+  "local_port": 8132,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-ascii-magic/"
  },
@@ -686,6 +822,8 @@
   "description": "100% client-side YARA-X & Sigma threat detection compiler with 60fps byte-offset entropy radar, CVE-2024-4577 PHP-CGI / ELF64 memfd / AI Agent exfil signatures, and MITRE ATT&CK mapping.",
   "version": "3.4.0",
   "github": "https://github.com/1nc0gn30/yara-sigma-forge",
+  "execution_type": "browser",
+  "local_port": 8133,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/yara-sigma-forge/"
  },
@@ -696,6 +834,8 @@
   "description": "Interactive 60fps Reality Switch shader synthesizer and ZothOS desktop theme compiler. Customize the 5 Zoth Realities, preview Zoth Bot companions, and export KDE Plasma .colors, Alacritty .toml, and CSS tokens.",
   "version": "3.4.0",
   "github": "https://github.com/1nc0gn30/reality-shader-forge",
+  "execution_type": "browser",
+  "local_port": 8134,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/reality-shader-forge/"
  },
@@ -706,6 +846,8 @@
   "description": "Local Zoth OS cockpit that diffs the ZOTHOS Product Hunt listing against live website/GitHub URLs, surfaces votes/ranks/comments, and serves a loopback dashboard on :8139. Token stays in ~/.config/zothos/producthunt.secret.json.",
   "version": "1.1.0",
   "github": "https://github.com/1nc0gn30/producthunt-connector",
+  "execution_type": "local_cli",
+  "local_port": 8139,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/producthunt-connector/"
  },
@@ -716,6 +858,8 @@
   "description": "Hardened local MCP/HTTP bridge so many AI agents share one ZothOS machine with per-agent tokens, path sandbox, command blocklist, rate limits, and audit trail on 127.0.0.1:8765.",
   "version": "0.5.0",
   "github": "https://github.com/1nc0gn30/zoth-relay",
+  "execution_type": "local_cli",
+  "local_port": 8765,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-relay/"
  },
@@ -726,6 +870,8 @@
   "description": "Sovereign wearable AI mission coach for Ray-Ban Meta smart glasses over Tailscale — full-duplex WebSocket guide stream, Moondream vision, AGY coaching, and Kokoro TTS via zoth-relay-mobile.",
   "version": "0.5.0",
   "github": "https://github.com/1nc0gn30/zela-glasses-guide",
+  "execution_type": "browser",
+  "local_port": 8144,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zela-glasses-guide/"
  },
@@ -736,6 +882,8 @@
   "description": "Local-first always-on 3D WebGL desk companion for Zoth OS — multi-harness neural engine (Grok/Hermes/Ollama), Security Ring authority, MCP hub, summoned with Ctrl+Shift+Space.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/zoth-bot",
+  "execution_type": "local_cli",
+  "local_port": 8146,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-bot/"
  },
@@ -746,6 +894,8 @@
   "description": "Zero-false-positive security research & responsible disclosure workspace tracking Ongoing / Pending / Completed audits with a loopback command center on :9494.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/zoth-bounty",
+  "execution_type": "local_cli",
+  "local_port": 9494,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-bounty/"
  },
@@ -756,6 +906,8 @@
   "description": "Procedural ZothOS-style ASCII + pixel-art scene engine — 1000 deterministic scenes with Bayer dither, tube palettes, and three.js AsciiEffect stage on :8823.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/zoth-scene-foundry",
+  "execution_type": "browser",
+  "local_port": 8823,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-scene-foundry/"
  },
@@ -766,6 +918,8 @@
   "description": "Real-time 4-Pillar Mathematical Security & Compute Telemetry HUD (L0 Kernel Hardware, L1 Crypto Vault, L2 Network Enclave, L3 Agent Runtime) with Compact Pill mode, Electron desktop overlay, and Braille TUI.",
   "version": "2.0.0",
   "github": "https://github.com/1nc0gn30/zoth-os",
+  "execution_type": "local_cli",
+  "local_port": 9995,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-math-pillar/"
  },
@@ -776,6 +930,8 @@
   "description": "Tails-style Amnesic Monotone Security & AI OS (#F7F7F4 / #000000 · Debian 13 Live · toram noswap) supporting 56 curated AI models across 8 providers, interactive onboarding, ZothNet P2P mesh, external USB/cloud persistence, and lightweight media/dev tools on :8145.",
   "version": "1.2.0",
   "github": "https://github.com/1nc0gn30/zothos-lite",
+  "execution_type": "local_cli",
+  "local_port": 8145,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zothos-lite/"
  },
@@ -786,6 +942,8 @@
   "description": "Autonomous zero-DNS darknet mesh with Sphinx 1,280B onion mixnet, Vaelor feeless L1 DAG, Kademlia DHT alpha=3, RFC 5389 STUN NAT traversal, and CAS parallel swarm on :9900 and UDP :42069.",
   "version": "1.2.0",
   "github": "https://github.com/NullAITech/zoth-studio-v2",
+  "execution_type": "local_cli",
+  "local_port": 9900,
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/zothnet/"
  },
@@ -796,6 +954,8 @@
   "description": "Curated reading lists, tactical playbooks, and business mental models from top creators and operators with zero-tracking client-side search on :5185.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/creatorplaybooks",
+  "execution_type": "browser",
+  "local_port": 5185,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/creatorplaybooks/"
  },
@@ -806,6 +966,8 @@
   "description": "Sovereign Second Brain vault explorer, 5 Ecosystem Pillars, 7-APK Master Roadmap, and 80-tool verification matrix with live screenrecordings on :8151.",
   "version": "1.2.0",
   "github": "https://github.com/1nc0gn30/zoth-obsidian-tracker",
+  "execution_type": "local_cli",
+  "local_port": 8151,
   "published": false,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-obsidian-tracker/"
  },
@@ -816,6 +978,8 @@
   "description": "Sovereign local X (Twitter) multi-account API controller, persistent systemd timer scheduler, Zoth Vault OAuth configurator, and live campaign workstation on :8152.",
   "version": "1.0.0",
   "github": "https://github.com/1nc0gn30/zoth-x-connector",
+  "execution_type": "local_cli",
+  "local_port": 8152,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-x-connector/"
  },
@@ -826,7 +990,33 @@
   "description": "Zero-dependency OpenAI-compatible collective-intelligence inference proxy (:8147) orchestrating 3,456 co-prime cognitive lenses over DeepSeek-Flash & Nous Research Hermes Agent with Beta-posterior Adaptive-Consistency stopping.",
   "version": "0.1.0-beta",
   "github": "https://github.com/1nc0gn30/zoth-egregore",
+  "execution_type": "local_cli",
+  "local_port": 8147,
   "published": true,
   "studio_url": "https://zoth.nullai.tech/tools/zoth-egregore/"
+ },
+ {
+  "id": "zoth-bot-os",
+  "name": "Zoth Bot OS",
+  "category": "Swarm & Core",
+  "description": "Mobile-first PWA and desktop Command Deck (:8190) unifying Hermes, Antigravity (AGY), Chronicle Vault, Social Teach-by-Recording Playbooks, and Netlify Cove over local loopback and Tailscale HTTPS.",
+  "version": "1.4.0",
+  "github": "https://github.com/1nc0gn30/zoth-bot-os",
+  "execution_type": "local_cli",
+  "local_port": 8190,
+  "published": false,
+  "studio_url": "https://zoth.nullai.tech/tools/zoth-bot-os/"
+ },
+ {
+  "id": "zoth-comfy-foundry",
+  "name": "Zoth Comfy Cloud Foundry",
+  "category": "Media & 3D",
+  "description": "Zero-dependency Python CLI & 8-preset workflow library connecting Zoth web projects to Comfy Cloud and Partner Nodes (FLUX.2 Pro, FLUX.1 Kontext, Partner Video Loops) for hero specimens, packshots, and batch SKU renders with zero local GPU VRAM required.",
+  "version": "1.2.0",
+  "github": "https://github.com/1nc0gn30/zoth-comfy-foundry",
+  "execution_type": "local_cli",
+  "local_port": null,
+  "published": false,
+  "studio_url": "https://zoth.nullai.tech/tools/zoth-comfy-foundry/"
  }
 ]

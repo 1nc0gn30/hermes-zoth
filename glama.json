@@ -2,14 +2,19 @@
   "$schema": "https://glama.ai/mcp/schemas/connector.json",
   "name": "hermes-zoth",
   "displayName": "hermes-zoth",
-  "description": "Zoth Studio tool catalog, ZOTHOS services, and NullAI ecosystem bridge for Hermes Agent.",
-  "version": "1.2.0",
+  "description": "85-tool Zoth Studio catalog, ZOTHOS loopback services, and Sovereign Agent Bridge plugin for Hermes Agent.",
+  "version": "1.3.0",
   "author": "1nc0gn30 (Zoth Studio)",
   "repository": "https://github.com/1nc0gn30/hermes-zoth",
   "homepage": "https://zoth.nullai.tech",
   "transport": "stdio",
   "category": "Tool Directory",
-  "environmentVariables": [],
+  "environmentVariables": [
+    "HERMES_HOME",
+    "ZOTH_WORKSPACE_ROOT",
+    "ZOTH_GROWTH_HUB_DIR",
+    "ZOTH_BRIDGE_URL"
+  ],
   "buildSpec": {
     "command": "python -m pip install git+https://github.com/1nc0gn30/hermes-zoth",
     "test": "hermes plugins validate ~/.hermes/plugins/zoth"

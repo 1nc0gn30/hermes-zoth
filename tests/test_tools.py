@@ -1,4 +1,4 @@
-import importlib.util, json, os, sys, threading
+import importlib.util, json, os, re, sys, threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
@@ -37,8 +37,11 @@ def test_register():
 def test_search_and_tool():
     r = json.loads(tools.studio_search({"query": "regex"}))
     assert r["results"][0]["id"] == "regex-droid-builder"
+    assert r["results"][0]["execution_type"] == "browser"
+    assert r["results"][0]["local_port"] == 8101
     t = json.loads(tools.studio_tool({"tool_id": "regex-droid-builder"}))
     assert t["studio_url"] == "https://zoth.nullai.tech/tools/regex-droid-builder/"
+    assert t["local_port"] == 8101
     assert "error" in json.loads(tools.studio_tool({"tool_id": "nope"}))
 
 
@@ -238,6 +241,7 @@ def test_error_shapes():
     assert r["ok"] is False and r["error"]["code"] == "unknown_tool"
     assert r["error"]["did_you_mean"] == ["regex-droid-builder"]
     assert json.loads(tools.studio_search({"limit": "x"}))["error"]["code"] == "bad_argument"
+    assert json.loads(tools.studio_search({"limit": True}))["error"]["code"] == "bad_argument"
     assert json.loads(tools.studio_search({"category": "nope"}))["error"]["code"] == "unknown_category"
 
 
@@ -283,8 +287,10 @@ def test_z03_search_ranking_and_projection():
     r_jwt = json.loads(tools.studio_search({"query": "jwt"}))
     assert r_jwt["ok"] is True
     assert r_jwt["results"][0]["id"] == "jwt-inspector-guard"
-    # Both version and score are projected
+    # version, execution_type, local_port, and score are projected
     assert "version" in r_jwt["results"][0]
+    assert "execution_type" in r_jwt["results"][0]
+    assert "local_port" in r_jwt["results"][0]
     assert "score" in r_jwt["results"][0]
     assert r_jwt["results"][0]["score"] > 0
 
@@ -318,15 +324,27 @@ def test_z05_friendly_name_resolution():
 
 
 def test_z07_services_port_coverage():
-    # Ports 8095-8106 must all be covered in SERVICES
+    # Ports 8095-8106, Chronicle vault 8161, and Zoth Bot OS 8190 must all be covered in SERVICES
     ports = {port for _, port, _ in tools.SERVICES}
     for p in range(8095, 8107):
         assert p in ports, f"Port {p} missing from SERVICES"
+    assert 8161 in ports
+    assert 8190 in ports
 
 
 def test_z10_errors_documented_in_readme():
-    readme = (ROOT / "README.md").read_text()
-    for code in ("bad_repo", "unknown_tool", "unknown_category", "bad_argument", "not_published", "git_missing"):
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    for code in (
+        "bad_repo",
+        "unknown_tool",
+        "unknown_category",
+        "bad_argument",
+        "not_published",
+        "git_missing",
+        "bridge_unreachable",
+        "dest_outside_root",
+        "third_party_repo",
+    ):
         assert code in readme
 
 
@@ -458,16 +476,34 @@ def test_status_total_timeout(monkeypatch):
     assert r["services"][0].get("timed_out") is True and r["services"][1]["up"] is False
 
 
-def test_check_live_refuses_cross_host_redirect():
+def test_check_live_refuses_cross_host_and_downgrade_redirects():
     import urllib.request as ur
     h = tools._SameHostRedirect()
     req = ur.Request("https://zoth.nullai.tech/tools/x/")
-    try:
-        h.redirect_request(req, None, 302, "Found", {}, "https://evil.example/")
-        assert False, "should refuse"
-    except tools.urllib.error.URLError:
-        pass
+    for bad_target in ("https://evil.example/", "http://zoth.nullai.tech/tools/x/"):
+        try:
+            h.redirect_request(req, None, 302, "Found", {}, bad_target)
+            assert False, f"should refuse {bad_target}"
+        except tools.urllib.error.URLError:
+            pass
     assert h.redirect_request(req, None, 302, "Found", {}, "https://zoth.nullai.tech/tools/x") is not None
+    assert h.redirect_request(req, None, 302, "Found", {}, "/tools/x") is not None
+
+
+def test_check_live_refuses_tampered_studio_url(monkeypatch):
+    monkeypatch.setattr(tools, "_find", lambda _id: {
+        "id": "tampered",
+        "name": "Tampered",
+        "category": "Test",
+        "description": "Test",
+        "version": "1.0.0",
+        "github": "",
+        "published": False,
+        "studio_url": "http://169.254.169.254/latest/meta-data/",
+    })
+    r = json.loads(tools.studio_tool({"tool_id": "tampered", "check_live": True}))
+    assert r["ok"] is True
+    assert r["live_status"].startswith("refused:")
 
 
 def test_z12_catalog_cache_invalidation(tmp_path, monkeypatch):
@@ -493,10 +529,8 @@ def test_z12_catalog_cache_invalidation(tmp_path, monkeypatch):
     assert len(t2) == 2
 
 
-
 def test_bundled_catalog_has_no_personal_data():
-    import re
-    text = (ROOT / "data" / "studio_tools.json").read_text()
+    text = (ROOT / "data" / "studio_tools.json").read_text(encoding="utf-8")
     assert not re.search(r"\+?1?[ (.-]*\d{3}[ ).-]*\d{3}[ .-]\d{4}", text)
     assert not re.search(r"[\w.+-]+@[\w-]+\.[a-z]{2,}", text)
     assert not re.search(r"/(home|media|Users)/", text)
@@ -506,10 +540,53 @@ def test_bundled_catalog_has_no_personal_data():
     assert all(r["studio_url"].startswith("https://zoth.nullai.tech/tools/") for r in rows)
 
 
+def test_catalog_85_tool_integrity():
+    rows = json.loads((ROOT / "data" / "studio_tools.json").read_text(encoding="utf-8"))
+    assert len(rows) == 85
+    by_id = {r["id"]: r for r in rows}
+    assert len(by_id) == 85
+
+    valid_exec_types = {"browser", "local_cli", "webgpu", "hybrid"}
+    for r in rows:
+        assert r["id"] and r["name"] and r["category"] and r["description"]
+        assert r["execution_type"] in valid_exec_types, r["id"]
+        port = r["local_port"]
+        assert port is None or (isinstance(port, int) and 1 <= port <= 65535), (r["id"], port)
+        assert isinstance(r["published"], bool)
+        assert r["studio_url"] == f"https://zoth.nullai.tech/tools/{r['id']}/"
+
+    # Explicitly assert newest 2 tools (84 & 85) are synced accurately
+    assert "zoth-bot-os" in by_id
+    assert by_id["zoth-bot-os"]["local_port"] == 8190
+    assert by_id["zoth-bot-os"]["execution_type"] == "local_cli"
+    assert by_id["zoth-bot-os"]["category"] == "Swarm & Core"
+
+    assert "zoth-comfy-foundry" in by_id
+    assert by_id["zoth-comfy-foundry"]["execution_type"] == "local_cli"
+    assert by_id["zoth-comfy-foundry"]["category"] == "Media & 3D"
+
+
+def test_studio_search_execution_type_and_none_args():
+    r_cli = json.loads(tools.studio_search({"execution_type": "local_cli", "limit": 100}))
+    assert r_cli["ok"] is True
+    assert r_cli["count"] == 29
+    assert all(item["execution_type"] == "local_cli" for item in r_cli["results"])
+    cli_ids = {item["id"] for item in r_cli["results"]}
+    assert "zoth-bot-os" in cli_ids and "zoth-comfy-foundry" in cli_ids
+
+    r_bad = json.loads(tools.studio_search({"execution_type": "quantum"}))
+    assert r_bad["ok"] is False and r_bad["error"]["code"] == "bad_argument"
+
+    # Defensive handling of non-dict args
+    r_none = json.loads(tools.studio_search(None))
+    assert r_none["ok"] is True and r_none["count"] == 85
+
+
 def test_bridge_post_targets_broadcast_route_and_payload(monkeypatch):
     # Regression guard: default route must be /api/broadcast, never /api/agents/message
     assert tools.BRIDGE_BROADCAST_URL == "http://127.0.0.1:8102/api/broadcast"
     assert "/api/agents/message" not in (ROOT / "tools.py").read_text(encoding="utf-8")
+    monkeypatch.delenv("ZOTH_BRIDGE_URL", raising=False)
 
     received = {}
 
@@ -571,3 +648,111 @@ def test_bridge_post_targets_broadcast_route_and_payload(monkeypatch):
     bad = json.loads(tools.bridge_post({"body": "   "}))
     assert bad["ok"] is False
     assert bad["error"]["code"] == "bad_argument"
+
+
+def test_bridge_post_loopback_guard_and_error_handling(monkeypatch):
+    # SSRF guard: refuse non-loopback ZOTH_BRIDGE_URL values
+    for bad_url in (
+        "http://169.254.169.254/latest/meta-data/",
+        "https://evil.example/api/broadcast",
+        "file:///etc/passwd",
+        "http://10.0.0.1:8102/api/broadcast",
+    ):
+        monkeypatch.setenv("ZOTH_BRIDGE_URL", bad_url)
+        r = json.loads(tools.bridge_post({"body": "ping"}))
+        assert r["ok"] is False and r["error"]["code"] == "bad_argument", bad_url
+
+    # HTTP 500 error handled cleanly
+    class ErrHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(b"bridge boom")
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), ErrHandler)
+    port = srv.server_port
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setenv("ZOTH_BRIDGE_URL", f"http://localhost:{port}/api/broadcast")
+        r = json.loads(tools.bridge_post({"body": "ping"}))
+    finally:
+        srv.shutdown()
+    assert r["ok"] is False
+    assert r["error"]["code"] == "bridge_unreachable"
+    assert r["error"]["status"] == 500
+
+
+def test_probe_refuses_redirects_and_ignores_proxy(monkeypatch):
+    class RedirectHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", "http://169.254.169.254/latest/meta-data/")
+            self.end_headers()
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), RedirectHandler)
+    port = srv.server_port
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:1")
+        up, body = tools._probe(port, "/health")
+    finally:
+        srv.shutdown()
+    # Port accepted TCP (up=True), redirect refused so body is None
+    assert up is True
+    assert body is None
+
+
+def test_ecosystem_targets_and_growth_directories_dynamic_paths(tmp_path, monkeypatch):
+    ws = tmp_path / "workspace"
+    pub = ws / "zoth-studio-v2" / "public"
+    pub.mkdir(parents=True)
+    (pub / "robots.txt").write_text("User-agent: *\nAllow: /\n", encoding="utf-8")
+    (pub / "sitemap.xml").write_text("<urlset/>", encoding="utf-8")
+    hub = tmp_path / "growth-hub"
+    monkeypatch.setenv("ZOTH_WORKSPACE_ROOT", str(ws))
+    monkeypatch.setenv("ZOTH_GROWTH_HUB_DIR", str(hub))
+
+    eco = json.loads(tools.ecosystem_targets({"product": "zoth-studio"}))
+    assert eco["ok"] is True and eco["count"] == 1
+    p = eco["products"][0]
+    assert p["id"] == "zoth-studio"
+    assert "85" in p["name"]
+    assert p["public_dir"] == str(pub)
+    assert p["seo_health"] == {"robots_txt": True, "sitemap_xml": True, "llms_txt": False}
+    assert p["existing_workspace_paths"] == [str(ws / "zoth-studio-v2")]
+
+    eco_all = json.loads(tools.ecosystem_targets({}))
+    assert eco_all["ok"] is True and eco_all["count"] == 6
+
+    g = json.loads(tools.growth_directories({"channel_type": "awesome-list"}))
+    assert g["ok"] is True and g["count"] == 4
+    assert g["hub_dir"] == str(hub)
+    assert all(c["type"] == "awesome-list" for c in g["channels"])
+    assert all(c["pack"].startswith(str(hub)) for c in g["channels"])
+
+
+def test_repo_has_no_hardcoded_personal_paths_or_secrets():
+    checked_files = [
+        ROOT / "__init__.py",
+        ROOT / "tools.py",
+        ROOT / "schemas.py",
+        ROOT / "plugin.yaml",
+        ROOT / "server.json",
+        ROOT / "glama.json",
+        ROOT / "README.md",
+        ROOT / "skills" / "zoth-studio" / "SKILL.md",
+        ROOT / "data" / "studio_tools.json",
+        ROOT / "scripts" / "sync_catalog.py",
+        ROOT / ".github" / "workflows" / "ci.yml",
+    ]
+    personal_path_re = re.compile(r"/home/[a-zA-Z0-9._-]+|/Users/[a-zA-Z0-9._-]+")
+    secret_re = re.compile(r"ghp_[A-Za-z0-9]{10,}|github_pat_[A-Za-z0-9_]{10,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[bp]-[A-Za-z0-9-]+")
+    for path in checked_files:
+        text = path.read_text(encoding="utf-8")
+        assert not personal_path_re.search(text), f"Hardcoded personal path in {path}"
+        assert not secret_re.search(text), f"Potential secret in {path}"

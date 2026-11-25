@@ -3,26 +3,57 @@
 
     python scripts/sync_catalog.py --studio /path/to/zoth-studio-v2 [--no-verify] [--check]
 
-Reads src/data/toolsData.js via `node` (Node 18+), keeps only public fields, then checks
-each Studio page (must return 200 and a tool-specific <title>) and each GitHub repo
-(`git ls-remote`). A repo that does not answer is written with "published": false.
+Reads src/data/toolsData.js via `node` (Node 18+), falling back to public/api/tools.json
+if toolsData.js or Node is unavailable, keeps only public fields, then checks each Studio
+page (must return 200 and a tool-specific <title>) and each GitHub repo (`git ls-remote`).
+A repo that does not answer is written with "published": false.
 --check exits 1 if the bundled file would change (for CI).
 """
-import argparse, concurrent.futures as cf, json, re, subprocess, sys, urllib.request
+import argparse
+import concurrent.futures as cf
+import json
+import re
+import shutil
+import subprocess
+import sys
+import urllib.request
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parents[1] / "data" / "studio_tools.json"
 BASE = "https://zoth.nullai.tech/tools/"
 GENERIC_TITLE = "Pantheon Matrix"  # the Studio home title, served for unknown routes
 FIELDS = ("id", "name", "category", "description", "version", "github")
-PII = [re.compile(p) for p in (r"\+?1?[ (.-]*\d{3}[ ).-]*\d{3}[ .-]\d{4}", r"[\w.+-]+@[\w-]+\.[\w.]+",
-       r"/(home|media|Users)/", r"ghp_|github_pat_|sk-[A-Za-z0-9]{16}|AKIA[0-9A-Z]{16}|xox[bp]-")]
+PII = [
+    re.compile(p)
+    for p in (
+        r"\+?1?[ (.-]*\d{3}[ ).-]*\d{3}[ .-]\d{4}",
+        r"[\w.+-]+@[\w-]+\.[\w.]+",
+        r"/(home|media|Users)/",
+        r"ghp_|github_pat_|sk-[A-Za-z0-9]{16}|AKIA[0-9A-Z]{16}|xox[bp]-",
+    )
+]
 
 
 def load(studio: Path):
     js = (studio / "src/data/toolsData.js").resolve()
-    code = f"import({json.dumps(js.as_uri())}).then(m=>process.stdout.write(JSON.stringify(m.microTools)))"
-    return json.loads(subprocess.run(["node", "-e", code], check=True, capture_output=True, text=True).stdout)
+    if js.exists() and shutil.which("node"):
+        code = f"import({json.dumps(js.as_uri())}).then(m=>process.stdout.write(JSON.stringify(m.microTools)))"
+        return json.loads(subprocess.run(["node", "-e", code], check=True, capture_output=True, text=True).stdout)
+    api_json = (studio / "public/api/tools.json").resolve()
+    if api_json.exists():
+        raw = json.loads(api_json.read_text(encoding="utf-8"))
+        return raw.get("tools", raw) if isinstance(raw, dict) else raw
+    raise FileNotFoundError(f"neither {js} (with node) nor {api_json} found")
+
+
+def _normalize_port(val):
+    if val is None or isinstance(val, bool):
+        return None
+    try:
+        port = int(val)
+    except (TypeError, ValueError):
+        return None
+    return port if 1 <= port <= 65535 else None
 
 
 def page_ok(url):
@@ -45,8 +76,15 @@ def repo_ok(url):
     env = {"GIT_TERMINAL_PROMPT": "0", "PATH": "/usr/bin:/bin:/usr/local/bin"}
     for _ in range(2):
         try:
-            if subprocess.run(["git", "-c", "credential.helper=", "ls-remote", "-q", base, "HEAD"],
-                              capture_output=True, env=env, timeout=30).returncode == 0:
+            if (
+                subprocess.run(
+                    ["git", "-c", "credential.helper=", "ls-remote", "-q", base, "HEAD"],
+                    capture_output=True,
+                    env=env,
+                    timeout=30,
+                ).returncode
+                == 0
+            ):
                 return True
         except Exception:
             pass
@@ -62,6 +100,9 @@ def main():
     tools = []
     for t in load(a.studio):
         row = {k: str(t.get(k, "")) for k in FIELDS}
+        row["execution_type"] = str(t.get("executionType") or t.get("execution_type") or "browser")
+        raw_port = t.get("localPort") if "localPort" in t else t.get("port")
+        row["local_port"] = _normalize_port(raw_port)
         row["published"] = bool(t.get("published"))
         row["studio_url"] = BASE + row["id"] + "/"
         tools.append(row)
@@ -77,7 +118,7 @@ def main():
                 t["published"] = False
                 problems.append(f"repo unreachable, marked unpublished: {t['github']}")
     for t in tools:
-        for field in ("name", "description", "category"):
+        for field in ("name", "description", "category", "github", "studio_url"):
             if any(p.search(t[field]) for p in PII):
                 problems.append(f"possible personal data in {t['id']}.{field}; review before committing")
     new = json.dumps(tools, indent=1, ensure_ascii=False) + "\n"

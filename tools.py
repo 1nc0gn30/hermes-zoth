@@ -1,5 +1,6 @@
 """Handlers for the Zoth plugin. Each returns a JSON string and never raises."""
 
+import difflib
 import json
 import os
 import re
@@ -18,8 +19,9 @@ _CATALOG_PATH = Path(__file__).parent / "data" / "studio_tools.json"
 _catalog = None
 _catalog_mtime = 0
 
-# Loopback services documented in Zoth Studio's server/studio-api.mjs.
-# Covers UI :3000, memory :8094, the full :8095-8106 agent/security suite, vault :8787, WebGen :5173, and Ollama :11434.
+# Loopback services documented in Zoth Studio's server/studio-api.mjs and ZOTHOS.
+# Covers UI :3000, memory :8094, the full :8095-8106 agent/security suite,
+# Chronicle memory vault :8161, Zoth Bot OS :8190, vault :8787, WebGen :5173, and Ollama :11434.
 SERVICES = [
     ("Zoth Studio UI", 3000, "/"),
     ("Neuro memory daemon", 8094, "/health"),
@@ -35,6 +37,8 @@ SERVICES = [
     ("Agent flight recorder", 8104, "/api/stats"),
     ("Agent capsule jail", 8105, "/api/stats"),
     ("Agent policy auditor", 8106, "/api/stats"),
+    ("Chronicle memory vault", 8161, "/health"),
+    ("Zoth Bot OS", 8190, "/health"),
     ("Vault daemon", 8787, "/health"),
     ("Zoth WebGen (Bolt.DIY)", 5173, "/"),
     ("Ollama", 11434, "/api/tags"),
@@ -55,10 +59,14 @@ GIT_SAFE_CONFIG = [
     "-c", "protocol.ext.allow=never",
     "-c", "submodule.recurse=false",
 ]
-_ENV_PASSTHROUGH = ("PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TMPDIR", "TEMP", "TMP",
-                    "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy",
-                    "SSL_CERT_FILE", "SSL_CERT_DIR", "GIT_SSL_CAINFO")
+_ENV_PASSTHROUGH = (
+    "PATH", "HOME", "LANG", "LC_ALL", "SYSTEMROOT", "TMPDIR", "TEMP", "TMP",
+    "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "GIT_SSL_CAINFO",
+)
 _SHA_RE = re.compile(r"[0-9a-fA-F]{40}")
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+BRIDGE_BROADCAST_URL = "http://127.0.0.1:8102/api/broadcast"
 
 
 def _source(t: dict) -> dict:
@@ -85,20 +93,46 @@ def _pull_command(t: dict):
 
 
 class _SameHostRedirect(urllib.request.HTTPRedirectHandler):
+    """Allow redirects only when scheme and netloc remain identical."""
+
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        if urllib.parse.urlsplit(newurl).netloc != urllib.parse.urlsplit(req.full_url).netloc:
-            raise urllib.error.URLError(f"refusing cross-host redirect to {newurl}")
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+        orig = urllib.parse.urlsplit(req.full_url)
+        resolved = urllib.parse.urljoin(req.full_url, newurl)
+        target = urllib.parse.urlsplit(resolved)
+        if target.scheme != orig.scheme or target.netloc != orig.netloc:
+            raise urllib.error.URLError(f"refusing cross-host or scheme-changing redirect to {newurl}")
+        return super().redirect_request(req, fp, code, msg, headers, resolved)
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse all HTTP redirects on loopback requests to prevent SSRF."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.URLError(f"refusing redirect on loopback request to {newurl}")
 
 
 _same_host_opener = urllib.request.build_opener(_SameHostRedirect)
+_loopback_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
 
 
-def _err(code, message, **extra):
+def _is_loopback_url(url: str) -> bool:
+    """Return True only for http(s) URLs targeting a local loopback host."""
+    try:
+        parsed = urllib.parse.urlsplit(url)
+    except ValueError:
+        return False
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    host = (parsed.hostname or "").lower()
+    return host in _LOOPBACK_HOSTS
+
+
+def _err(code: str, message: str, **extra) -> str:
     return json.dumps({"ok": False, "error": {"code": code, "message": message, **extra}})
 
 
-def _tools():
+def _tools() -> list[dict]:
+    """Load the bundled Studio catalog, automatically reloading when its mtime changes."""
     global _catalog, _catalog_mtime
     try:
         mtime = _CATALOG_PATH.stat().st_mtime
@@ -113,8 +147,7 @@ def _tools():
     return _catalog
 
 
-def _suggest(tool_id):
-    import difflib
+def _suggest(tool_id) -> list[str]:
     raw = (tool_id or "").strip().lower()
     if not raw:
         return []
@@ -217,11 +250,16 @@ def _score_tool(t: dict, query_words: list[str], raw_query: str) -> int:
 
 
 def studio_search(args: dict, **kwargs) -> str:
+    """Search the bundled Zoth Studio catalog by keyword, category, and/or execution_type."""
     try:
+        args = args if isinstance(args, dict) else {}
         raw_q = str(args.get("query") or "").strip().lower()
         q_words = re.findall(r"[a-z0-9]+", raw_q)
         cat = str(args.get("category") or "").strip().lower()
+        exec_type = str(args.get("execution_type") or "").strip().lower()
         raw_limit = args.get("limit")
+        if isinstance(raw_limit, bool):
+            return _err("bad_argument", "limit must be an integer")
         try:
             limit = 10 if raw_limit is None else max(1, min(int(raw_limit), 100))
         except (TypeError, ValueError):
@@ -234,9 +272,19 @@ def studio_search(args: dict, **kwargs) -> str:
             if not matching_cats:
                 return _err("unknown_category", f"no category {args.get('category')!r}", categories=cats)
 
+        exec_types = sorted({str(t.get("execution_type") or "browser").lower() for t in catalog})
+        if exec_type and exec_type not in exec_types:
+            return _err(
+                "bad_argument",
+                f"unknown execution_type {args.get('execution_type')!r}",
+                execution_types=exec_types,
+            )
+
         hits = []
         for t in catalog:
             if cat and not _match_category(cat, t["category"]):
+                continue
+            if exec_type and str(t.get("execution_type") or "browser").lower() != exec_type:
                 continue
             score = _score_tool(t, q_words, raw_q)
             if score > 0:
@@ -249,6 +297,8 @@ def studio_search(args: dict, **kwargs) -> str:
                 "category": t["category"],
                 "description": t["description"],
                 "version": t.get("version", "1.0.0"),
+                "execution_type": t.get("execution_type", "browser"),
+                "local_port": t.get("local_port"),
                 "studio_url": t["studio_url"],
                 "github": t["github"],
                 "published": t["published"],
@@ -265,7 +315,9 @@ def studio_search(args: dict, **kwargs) -> str:
 
 
 def studio_tool(args: dict, **kwargs) -> str:
+    """Return full metadata for a single Zoth Studio tool by id or friendly name."""
     try:
+        args = args if isinstance(args, dict) else {}
         raw_id = args.get("tool_id")
         t = _find(raw_id)
         if not t:
@@ -278,27 +330,36 @@ def studio_tool(args: dict, **kwargs) -> str:
         res = {"ok": True, **t, **_source(t)}
         res["pull_command"] = _pull_command(t)
         if args.get("check_live"):
-            try:
-                req = urllib.request.Request(t["studio_url"], headers={"User-Agent": "hermes-zoth-plugin"})
-                with _same_host_opener.open(req, timeout=8) as r:
-                    res["live_status"] = r.status
-            except urllib.error.HTTPError as e:
-                res["live_status"] = e.code
-            except Exception as e:  # noqa: BLE001
-                res["live_status"] = f"unreachable: {e}"
+            studio_url = str(t.get("studio_url") or "")
+            if not studio_url.startswith(STUDIO_BASE + "/"):
+                res["live_status"] = "refused: studio_url outside zoth.nullai.tech"
+            else:
+                try:
+                    req = urllib.request.Request(studio_url, headers={"User-Agent": "hermes-zoth-plugin"})
+                    with _same_host_opener.open(req, timeout=8) as r:
+                        res["live_status"] = r.status
+                except urllib.error.HTTPError as e:
+                    res["live_status"] = e.code
+                except Exception as e:  # noqa: BLE001
+                    res["live_status"] = f"unreachable: {e}"
         return json.dumps(res)
     except Exception as e:  # noqa: BLE001
         return _err("internal", str(e))
 
 
-def _probe(port, path):
+def _probe(port: int, path: str):
+    """Probe a single 127.0.0.1 service without proxies or HTTP redirects."""
     try:
         with socket.create_connection(("127.0.0.1", port), timeout=0.6):
             pass
     except OSError:
         return False, None
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=1.5) as r:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}{path}",
+            headers={"User-Agent": "hermes-zoth-plugin"},
+        )
+        with _loopback_opener.open(req, timeout=1.5) as r:
             body = r.read(PROBE_MAX_BYTES)
         try:
             return True, json.loads(body)
@@ -309,8 +370,9 @@ def _probe(port, path):
 
 
 def status(args: dict, **kwargs) -> str:
+    """Check which local ZOTHOS / Zoth Studio loopback services and Ollama models are reachable."""
     try:
-        pool = ThreadPoolExecutor(max_workers=len(SERVICES))
+        pool = ThreadPoolExecutor(max_workers=max(1, len(SERVICES)))
         futures = [pool.submit(_probe, port, path) for _, port, path in SERVICES]
         wait(futures, timeout=STATUS_TOTAL_TIMEOUT)
         pool.shutdown(wait=False, cancel_futures=True)
@@ -441,13 +503,19 @@ def _git(args, env, log, timeout=180):
     except subprocess.TimeoutExpired:
         raise _GitError("timeout", f"git took longer than {timeout} s", command=shown)
     if p.returncode != 0:
-        raise _GitError("git_failed", f"git exited {p.returncode}", command=shown,
-                        output=(p.stdout + p.stderr)[-2000:])
+        raise _GitError(
+            "git_failed",
+            f"git exited {p.returncode}",
+            command=shown,
+            output=(p.stdout + p.stderr)[-2000:],
+        )
     return p.stdout
 
 
 def pull_tool(args: dict, **kwargs) -> str:
+    """Shallow-clone or fast-forward update one published NullAITech/1nc0gn30 repo under HERMES_HOME."""
     try:
+        args = args if isinstance(args, dict) else {}
         raw_id = args.get("tool_id")
         t = _find(raw_id)
         if not t:
@@ -530,9 +598,15 @@ def pull_tool(args: dict, **kwargs) -> str:
         except _GitError as e:
             return _err(e.code, e.message, **e.extra)
 
-        res = {"ok": True, "path": d, "command": log[0] if log else None, "commands": log,
-               "commit": sha if _SHA_RE.fullmatch(sha) else None, "source": f"github.com/{src['source_owner']}/{repo}",
-               "monorepo": src["monorepo"]}
+        res = {
+            "ok": True,
+            "path": d,
+            "command": log[0] if log else None,
+            "commands": log,
+            "commit": sha if _SHA_RE.fullmatch(sha) else None,
+            "source": f"github.com/{src['source_owner']}/{repo}",
+            "monorepo": src["monorepo"],
+        }
         if ref_str:
             res["ref"] = ref_str
         return json.dumps(res)
@@ -542,6 +616,30 @@ def pull_tool(args: dict, **kwargs) -> str:
         return _err("internal", str(e))
 
 
+def _workspace_root() -> Path:
+    """Resolve local Zoth/NullAI workspace root via ZOTH_WORKSPACE_ROOT or ~/NullAITech."""
+    raw = os.environ.get("ZOTH_WORKSPACE_ROOT", "").strip()
+    if raw:
+        return Path(os.path.expanduser(os.path.expandvars(raw)))
+    return Path.home() / "NullAITech"
+
+
+def _growth_hub_dir() -> Path:
+    """Resolve local growth-distribution directory via ZOTH_GROWTH_HUB_DIR or <workspace>/growth-distribution."""
+    raw = os.environ.get("ZOTH_GROWTH_HUB_DIR", "").strip()
+    if raw:
+        return Path(os.path.expanduser(os.path.expandvars(raw)))
+    return _workspace_root() / "growth-distribution"
+
+
+def _world_of_zoth_dir() -> Path:
+    """Resolve local World of Zoth directory via ZOTH_WORLD_DIR or ~/Desktop/world-of-zoth."""
+    raw = os.environ.get("ZOTH_WORLD_DIR", "").strip()
+    if raw:
+        return Path(os.path.expanduser(os.path.expandvars(raw)))
+    return Path.home() / "Desktop" / "world-of-zoth"
+
+
 ECOSYSTEM_PRODUCTS = [
     {
         "id": "zothos",
@@ -549,89 +647,101 @@ ECOSYSTEM_PRODUCTS = [
         "domain": "https://zothos.nullai.tech",
         "github": "https://github.com/1nc0gn30/zoth-os",
         "website_github": "https://github.com/1nc0gn30/zoth-os-website",
-        "workspace_paths": ["/home/zoth/NullAITech/zoth-os", "/home/zoth/NullAITech/zoth-os-website"],
-        "public_dir": "/home/zoth/NullAITech/zoth-os-website/public",
-        "focus": "Debian 13 Trixie Live ISO, KDE Plasma 6 + XFCE4 sovereign workstation, pre-wired local daemons (:8094-:8106), CLI binaries, and zothos.nullai.tech website.",
+        "workspace_repos": ["zoth-os", "zoth-os-website"],
+        "public_relpath": "zoth-os-website/public",
+        "focus": "Debian 13 Trixie Live ISO, KDE Plasma 6 + XFCE4 workstation, pre-wired local daemons (:8094-:8106, :8161, :8190), CLI binaries, and zothos.nullai.tech website.",
     },
     {
         "id": "zothos-lite",
-        "name": "ZOTHOS Lite (Instant Browser & Portable Sovereign OS)",
+        "name": "ZOTHOS Lite (Portable Browser & Sovereign OS)",
         "domain": "https://lite.zoth.nullai.tech",
         "github": "https://github.com/1nc0gn30/zothos-lite",
-        "workspace_paths": ["/home/zoth/NullAITech/zothos-lite"],
-        "public_dir": "/home/zoth/NullAITech/zothos-lite/public",
-        "focus": "Lightweight browser-accessible and portable sovereign desktop environment with zero-bloat terminal, VM harness, and instant tool execution.",
+        "workspace_repos": ["zothos-lite"],
+        "public_relpath": "zothos-lite/public",
+        "focus": "Lightweight browser-accessible and portable desktop environment with terminal, VM harness, and local tool execution.",
     },
     {
         "id": "zothnet",
-        "name": "ZothNet (Zero-Cloud Mesh & Encrypted Sovereign Network)",
+        "name": "ZothNet (Zero-Cloud Mesh & Encrypted Network)",
         "domain": "https://zothnet.nullai.tech",
         "github": "https://github.com/1nc0gn30/zothnet",
         "website_github": "https://github.com/1nc0gn30/zothnet-website",
-        "workspace_paths": ["/home/zoth/NullAITech/zothnet", "/home/zoth/NullAITech/zothnet-website", "/home/zoth/NullAITech/zothnet-android"],
-        "public_dir": "/home/zoth/NullAITech/zothnet-website/public",
-        "focus": "Encrypted P2P mesh networking, node discovery, sovereign agent transport, Android companion app, and zothnet.nullai.tech portal.",
+        "workspace_repos": ["zothnet", "zothnet-website", "zothnet-android"],
+        "public_relpath": "zothnet-website/public",
+        "focus": "Encrypted P2P mesh networking, node discovery, agent transport, Android companion app, and zothnet.nullai.tech portal.",
     },
     {
         "id": "zoth-studio",
-        "name": "Zoth Studio v2 (77+ Zero-Cloud In-Browser Developer & Security Tools)",
+        "name": "Zoth Studio v2 (85 Open-Access In-Browser & Local Tools)",
         "domain": "https://zoth.nullai.tech",
         "github": "https://github.com/1nc0gn30/zoth-studio-v2",
-        "workspace_paths": ["/home/zoth/NullAITech/zoth-studio-v2"],
-        "public_dir": "/home/zoth/NullAITech/zoth-studio-v2/public",
-        "focus": "77+ 100% free in-browser developer, security, AEO/SEO, and AI agent safety tools with local daemon bridges and zero paywalls.",
+        "workspace_repos": ["zoth-studio-v2"],
+        "public_relpath": "zoth-studio-v2/public",
+        "focus": "85 free, open-access in-browser and local CLI developer, security, AEO/SEO, media, and AI agent safety tools with local daemon bridges and zero paywalls.",
     },
     {
         "id": "1nc0gn30",
-        "name": "1nc0gn30 · World of Zoth (Sovereign Creator & Open-Source Hub)",
+        "name": "1nc0gn30 · World of Zoth (Creator & Open-Source Hub)",
         "domain": "https://1nc0gn30.si",
         "github": "https://github.com/1nc0gn30",
-        "workspace_paths": ["/home/zoth/Desktop/world-of-zoth"],
-        "public_dir": "/home/zoth/Desktop/world-of-zoth",
-        "focus": "Interactive World of Zoth 3D/WebGL experience, @1nc0gn30 open-source engineering hub, Real-Life World of Zoth cinema, and X growth automation.",
+        "workspace_repos": [],
+        "use_world_dir": True,
+        "public_relpath": "",
+        "focus": "Interactive World of Zoth 3D/WebGL experience and @1nc0gn30 open-source engineering hub.",
     },
     {
         "id": "nullai",
-        "name": "NullAI Platform (Sovereign AI Research & Engineering)",
+        "name": "NullAI Platform (Local-First AI Research & Engineering)",
         "domain": "https://nullai.tech",
         "github": "https://github.com/1nc0gn30/nullai2026",
-        "workspace_paths": ["/home/zoth/NullAITech/nullai2026", "/home/zoth/NullAITech/hermes-zoth"],
-        "public_dir": "/home/zoth/NullAITech/nullai2026/public",
-        "focus": "Umbrella sovereign AI research platform uniting ZothOS, Zoth Studio, ZothNet, Hermes-Zoth plugin, and local-first AI agent infrastructure.",
+        "workspace_repos": ["nullai2026", "hermes-zoth"],
+        "public_relpath": "nullai2026/public",
+        "focus": "Umbrella local-first AI research platform uniting ZothOS, Zoth Studio, ZothNet, hermes-zoth plugin, and local agent infrastructure.",
     },
 ]
 
 GROWTH_CHANNELS = [
-    {"id": "product-hunt", "name": "Product Hunt", "type": "directory", "url": "https://www.producthunt.com", "status": "live", "products": ["zoth-studio", "zothos"], "notes": "Already live on Product Hunt; keep shipping changelog updates and media."},
-    {"id": "hacker-news-show", "name": "Hacker News (Show HN)", "type": "community", "url": "https://news.ycombinator.com/submit", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet", "hermes-zoth"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/show_hn.md"},
-    {"id": "alternativeto", "name": "AlternativeTo", "type": "directory", "url": "https://alternativeto.net", "status": "ready_to_submit", "products": ["zothos", "zoth-studio", "zothnet"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/alternativeto.md"},
-    {"id": "devhunt", "name": "DevHunt (Developer Tools Launchpad)", "type": "directory", "url": "https://devhunt.org", "status": "ready_to_submit", "products": ["zoth-studio", "hermes-zoth", "zothos"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/devhunt.md"},
-    {"id": "saashub", "name": "SaaSHub", "type": "directory", "url": "https://www.saashub.com/submit", "status": "ready_to_submit", "products": ["zoth-studio", "zothos", "zothnet"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/saashub.md"},
-    {"id": "betalist", "name": "BetaList", "type": "directory", "url": "https://betalist.com/submit", "status": "ready_to_submit", "products": ["zothos-lite", "zothnet", "zoth-studio"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/betalist.md"},
-    {"id": "toolify", "name": "Toolify.ai", "type": "directory", "url": "https://www.toolify.ai/submit", "status": "ready_to_submit", "products": ["zoth-studio", "nullai"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/ai_directories.md"},
-    {"id": "futurepedia", "name": "Futurepedia", "type": "directory", "url": "https://www.futurepedia.io/submit-tool", "status": "ready_to_submit", "products": ["zoth-studio", "nullai"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/ai_directories.md"},
-    {"id": "taaft", "name": "There's An AI For That (TAAFT)", "type": "directory", "url": "https://theresanaiforthat.com/submit/", "status": "ready_to_submit", "products": ["zoth-studio", "zothos"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/ai_directories.md"},
-    {"id": "uneed", "name": "Uneed.best", "type": "directory", "url": "https://www.uneed.best/submit-a-tool", "status": "ready_to_submit", "products": ["zoth-studio", "zothos-lite"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/devhunt.md"},
-    {"id": "awesome-selfhosted", "name": "GitHub: awesome-selfhosted", "type": "awesome-list", "url": "https://github.com/awesome-selfhosted/awesome-selfhosted", "status": "pr_ready", "products": ["zoth-studio", "zothnet"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/awesome_lists_prs.md"},
-    {"id": "awesome-mcp-servers", "name": "GitHub: punkpeye/awesome-mcp-servers", "type": "awesome-list", "url": "https://github.com/punkpeye/awesome-mcp-servers", "status": "pr_ready", "products": ["zoth-studio", "hermes-zoth"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/awesome_lists_prs.md"},
-    {"id": "awesome-cli-apps", "name": "GitHub: agarrharr/awesome-cli-apps", "type": "awesome-list", "url": "https://github.com/agarrharr/awesome-cli-apps", "status": "pr_ready", "products": ["zothos", "zoth-studio"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/awesome_lists_prs.md"},
-    {"id": "awesome-linux", "name": "GitHub: inputsh/awesome-linux", "type": "awesome-list", "url": "https://github.com/inputsh/awesome-linux", "status": "pr_ready", "products": ["zothos", "zothos-lite"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/awesome_lists_prs.md"},
-    {"id": "reddit-selfhosted", "name": "Reddit: r/selfhosted", "type": "community", "url": "https://www.reddit.com/r/selfhosted/", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/reddit_launch_posts.md"},
-    {"id": "reddit-localllama", "name": "Reddit: r/LocalLLaMA", "type": "community", "url": "https://www.reddit.com/r/LocalLLaMA/", "status": "ready_to_post", "products": ["zothos", "hermes-zoth", "zoth-studio"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/reddit_launch_posts.md"},
-    {"id": "reddit-linux", "name": "Reddit: r/linux & r/commandline", "type": "community", "url": "https://www.reddit.com/r/linux/", "status": "ready_to_post", "products": ["zothos", "zothos-lite"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/reddit_launch_posts.md"},
-    {"id": "devto-hashnode", "name": "Dev.to & Hashnode Technical Deep-Dives", "type": "blog", "url": "https://dev.to", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet", "nullai"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/devto_hashnode_articles.md"},
-    {"id": "indiehackers", "name": "IndieHackers", "type": "community", "url": "https://www.indiehackers.com", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "nullai"], "pack": "/home/zoth/NullAITech/growth-distribution/submissions/devto_hashnode_articles.md"},
+    {"id": "product-hunt", "name": "Product Hunt", "type": "directory", "url": "https://www.producthunt.com", "status": "live", "products": ["zoth-studio", "zothos"], "notes": "Live on Product Hunt; publish changelog updates and media."},
+    {"id": "hacker-news-show", "name": "Hacker News (Show HN)", "type": "community", "url": "https://news.ycombinator.com/submit", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet", "hermes-zoth"], "pack_file": "submissions/show_hn.md"},
+    {"id": "alternativeto", "name": "AlternativeTo", "type": "directory", "url": "https://alternativeto.net", "status": "ready_to_submit", "products": ["zothos", "zoth-studio", "zothnet"], "pack_file": "submissions/alternativeto.md"},
+    {"id": "devhunt", "name": "DevHunt (Developer Tools Launchpad)", "type": "directory", "url": "https://devhunt.org", "status": "ready_to_submit", "products": ["zoth-studio", "hermes-zoth", "zothos"], "pack_file": "submissions/devhunt.md"},
+    {"id": "saashub", "name": "SaaSHub", "type": "directory", "url": "https://www.saashub.com/submit", "status": "ready_to_submit", "products": ["zoth-studio", "zothos", "zothnet"], "pack_file": "submissions/saashub.md"},
+    {"id": "betalist", "name": "BetaList", "type": "directory", "url": "https://betalist.com/submit", "status": "ready_to_submit", "products": ["zothos-lite", "zothnet", "zoth-studio"], "pack_file": "submissions/betalist.md"},
+    {"id": "toolify", "name": "Toolify.ai", "type": "directory", "url": "https://www.toolify.ai/submit", "status": "ready_to_submit", "products": ["zoth-studio", "nullai"], "pack_file": "submissions/ai_directories.md"},
+    {"id": "futurepedia", "name": "Futurepedia", "type": "directory", "url": "https://www.futurepedia.io/submit-tool", "status": "ready_to_submit", "products": ["zoth-studio", "nullai"], "pack_file": "submissions/ai_directories.md"},
+    {"id": "taaft", "name": "There's An AI For That (TAAFT)", "type": "directory", "url": "https://theresanaiforthat.com/submit/", "status": "ready_to_submit", "products": ["zoth-studio", "zothos"], "pack_file": "submissions/ai_directories.md"},
+    {"id": "uneed", "name": "Uneed.best", "type": "directory", "url": "https://www.uneed.best/submit-a-tool", "status": "ready_to_submit", "products": ["zoth-studio", "zothos-lite"], "pack_file": "submissions/devhunt.md"},
+    {"id": "awesome-selfhosted", "name": "GitHub: awesome-selfhosted", "type": "awesome-list", "url": "https://github.com/awesome-selfhosted/awesome-selfhosted", "status": "pr_ready", "products": ["zoth-studio", "zothnet"], "pack_file": "submissions/awesome_lists_prs.md"},
+    {"id": "awesome-mcp-servers", "name": "GitHub: punkpeye/awesome-mcp-servers", "type": "awesome-list", "url": "https://github.com/punkpeye/awesome-mcp-servers", "status": "pr_ready", "products": ["zoth-studio", "hermes-zoth"], "pack_file": "submissions/awesome_lists_prs.md"},
+    {"id": "awesome-cli-apps", "name": "GitHub: agarrharr/awesome-cli-apps", "type": "awesome-list", "url": "https://github.com/agarrharr/awesome-cli-apps", "status": "pr_ready", "products": ["zothos", "zoth-studio"], "pack_file": "submissions/awesome_lists_prs.md"},
+    {"id": "awesome-linux", "name": "GitHub: inputsh/awesome-linux", "type": "awesome-list", "url": "https://github.com/inputsh/awesome-linux", "status": "pr_ready", "products": ["zothos", "zothos-lite"], "pack_file": "submissions/awesome_lists_prs.md"},
+    {"id": "reddit-selfhosted", "name": "Reddit: r/selfhosted", "type": "community", "url": "https://www.reddit.com/r/selfhosted/", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet"], "pack_file": "submissions/reddit_launch_posts.md"},
+    {"id": "reddit-localllama", "name": "Reddit: r/LocalLLaMA", "type": "community", "url": "https://www.reddit.com/r/LocalLLaMA/", "status": "ready_to_post", "products": ["zothos", "hermes-zoth", "zoth-studio"], "pack_file": "submissions/reddit_launch_posts.md"},
+    {"id": "reddit-linux", "name": "Reddit: r/linux & r/commandline", "type": "community", "url": "https://www.reddit.com/r/linux/", "status": "ready_to_post", "products": ["zothos", "zothos-lite"], "pack_file": "submissions/reddit_launch_posts.md"},
+    {"id": "devto-hashnode", "name": "Dev.to & Hashnode Technical Deep-Dives", "type": "blog", "url": "https://dev.to", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "zothnet", "nullai"], "pack_file": "submissions/devto_hashnode_articles.md"},
+    {"id": "indiehackers", "name": "IndieHackers", "type": "community", "url": "https://www.indiehackers.com", "status": "ready_to_post", "products": ["zoth-studio", "zothos", "nullai"], "pack_file": "submissions/devto_hashnode_articles.md"},
 ]
 
 
-BRIDGE_BROADCAST_URL = "http://127.0.0.1:8102/api/broadcast"
+def _resolve_bridge_url() -> str:
+    """Resolve the Sovereign Agent Bridge broadcast URL, honoring ZOTH_BRIDGE_URL if set."""
+    env_url = os.environ.get("ZOTH_BRIDGE_URL", "").strip()
+    return env_url if env_url else BRIDGE_BROADCAST_URL
 
 
 def bridge_post(args: dict, **kwargs) -> str:
+    """POST a structured broadcast message to the local Sovereign Agent Bridge (:8102/api/broadcast)."""
     try:
+        args = args if isinstance(args, dict) else {}
         body = str(args.get("body") or "").strip()
         if not body:
             return _err("bad_argument", "body is required")
+        target_url = _resolve_bridge_url()
+        if not _is_loopback_url(target_url):
+            return _err(
+                "bad_argument",
+                "bridge URL must target loopback (127.0.0.1, localhost, or ::1)",
+            )
         sender = str(args.get("sender") or os.environ.get("HERMES_PROFILE") or "hermes-zoth").strip()
         recipient = str(args.get("recipient") or "broadcast").strip()
         topic = str(args.get("topic") or "hermes-swarm-update").strip()
@@ -644,34 +754,68 @@ def bridge_post(args: dict, **kwargs) -> str:
             },
         }).encode("utf-8")
         req = urllib.request.Request(
-            BRIDGE_BROADCAST_URL,
+            target_url,
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "User-Agent": "hermes-zoth-plugin"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=4.0) as r:
-            resp = json.loads(r.read(65536).decode("utf-8"))
+        with _loopback_opener.open(req, timeout=4.0) as r:
+            raw = r.read(PROBE_MAX_BYTES).decode("utf-8", "replace")
+        try:
+            resp = json.loads(raw)
+        except ValueError:
+            resp = {"raw": raw[:512]}
         return json.dumps({"ok": True, "bridge_response": resp})
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read(1024).decode("utf-8", "replace")
+        except Exception:  # noqa: BLE001
+            pass
+        return _err(
+            "bridge_unreachable",
+            f"Sovereign Agent Bridge returned HTTP {e.code}",
+            status=e.code,
+            detail=detail,
+        )
     except Exception as e:  # noqa: BLE001
         return _err("bridge_unreachable", f"could not post to Sovereign Agent Bridge (:8102): {e}")
 
 
 def ecosystem_targets(args: dict, **kwargs) -> str:
+    """Inspect the 6 Zoth/NullAI ecosystem targets, resolving local workspace paths dynamically."""
     try:
+        args = args if isinstance(args, dict) else {}
         filt = str(args.get("product") or "").strip().lower()
+        ws_root = _workspace_root()
+        world_dir = _world_of_zoth_dir()
         results = []
         for item in ECOSYSTEM_PRODUCTS:
             if filt and filt not in item["id"] and filt not in item["name"].lower():
                 continue
-            row = dict(item)
-            pub = Path(item["public_dir"])
-            row["seo_health"] = {
-                "robots_txt": (pub / "robots.txt").exists(),
-                "sitemap_xml": (pub / "sitemap.xml").exists(),
-                "llms_txt": (pub / "llms.txt").exists(),
+            if item.get("use_world_dir"):
+                workspace_paths = [str(world_dir)]
+                pub = world_dir
+            else:
+                workspace_paths = [str(ws_root / repo) for repo in item["workspace_repos"]]
+                pub = ws_root / item["public_relpath"]
+            row = {
+                "id": item["id"],
+                "name": item["name"],
+                "domain": item["domain"],
+                "github": item["github"],
+                "workspace_paths": workspace_paths,
+                "public_dir": str(pub),
+                "focus": item["focus"],
+                "seo_health": {
+                    "robots_txt": (pub / "robots.txt").exists(),
+                    "sitemap_xml": (pub / "sitemap.xml").exists(),
+                    "llms_txt": (pub / "llms.txt").exists(),
+                },
+                "existing_workspace_paths": [p for p in workspace_paths if Path(p).exists()],
             }
-            existing_paths = [p for p in item["workspace_paths"] if Path(p).exists()]
-            row["existing_workspace_paths"] = existing_paths
+            if "website_github" in item:
+                row["website_github"] = item["website_github"]
             results.append(row)
         return json.dumps({"ok": True, "count": len(results), "products": results})
     except Exception as e:  # noqa: BLE001
@@ -679,18 +823,33 @@ def ecosystem_targets(args: dict, **kwargs) -> str:
 
 
 def growth_directories(args: dict, **kwargs) -> str:
+    """List launch directories, communities, awesome-lists, and resolved local submission pack paths."""
     try:
+        args = args if isinstance(args, dict) else {}
         ctype = str(args.get("channel_type") or "").strip().lower()
-        items = [
-            c for c in GROWTH_CHANNELS
-            if not ctype or c["type"].lower() == ctype
-        ]
+        hub_dir = _growth_hub_dir()
+        items = []
+        for c in GROWTH_CHANNELS:
+            if ctype and c["type"].lower() != ctype:
+                continue
+            row = {
+                "id": c["id"],
+                "name": c["name"],
+                "type": c["type"],
+                "url": c["url"],
+                "status": c["status"],
+                "products": list(c["products"]),
+            }
+            if "notes" in c:
+                row["notes"] = c["notes"]
+            if "pack_file" in c:
+                row["pack"] = str(hub_dir / c["pack_file"])
+            items.append(row)
         return json.dumps({
             "ok": True,
             "count": len(items),
             "channels": items,
-            "hub_dir": "/home/zoth/NullAITech/growth-distribution",
+            "hub_dir": str(hub_dir),
         })
     except Exception as e:  # noqa: BLE001
         return _err("internal", str(e))
-
