@@ -748,6 +748,7 @@ def test_repo_has_no_hardcoded_personal_paths_or_secrets():
         ROOT / "skills" / "zoth-studio" / "SKILL.md",
         ROOT / "data" / "studio_tools.json",
         ROOT / "scripts" / "sync_catalog.py",
+        ROOT / "bin" / "hermes-gateway",
         ROOT / ".github" / "workflows" / "ci.yml",
     ]
     personal_path_re = re.compile(r"/home/[a-zA-Z0-9._-]+|/Users/[a-zA-Z0-9._-]+")
@@ -756,3 +757,56 @@ def test_repo_has_no_hardcoded_personal_paths_or_secrets():
         text = path.read_text(encoding="utf-8")
         assert not personal_path_re.search(text), f"Hardcoded personal path in {path}"
         assert not secret_re.search(text), f"Potential secret in {path}"
+
+
+def test_hermes_gateway_port_parser_and_redaction():
+    ss_out = (
+        'LISTEN 0 128 0.0.0.0:59999 0.0.0.0:* users:(("hermes",pid=999,fd=4))\n'
+        'LISTEN 0 2048 127.0.0.1:51234 0.0.0.0:* users:(("hermes",pid=1525,fd=5))\n'
+    )
+    assert tools._parse_hermes_loopback_port(ss_out, pid=1525) == 51234
+    assert tools._parse_hermes_loopback_port(ss_out, pid=None) == 51234
+    assert tools._parse_hermes_loopback_port('LISTEN 0 128 0.0.0.0:51234 0.0.0.0:* users:(("hermes",pid=1525,fd=5))', pid=1525) is None
+
+    synth_bearer = "Bearer " + "-".join(["sk", "dummy", "1234567890abcdef"])
+    redacted = tools._redact_hermes_value({
+        "path": "/home/operator/.hermes/config.yaml",
+        "token": synth_bearer,
+    })
+    assert redacted["path"] == "~/.hermes/config.yaml"
+    assert "1234567890abcdef" not in redacted["token"]
+
+
+def test_status_includes_hermes_gateway_live(monkeypatch):
+    monkeypatch.setattr(tools, "SERVICES", [])
+    monkeypatch.setattr(tools, "_probe_hermes_gateway", lambda: {
+        "name": "Hermes Agent Gateway",
+        "unit": "hermes-gateway.service",
+        "port": 51234,
+        "up": True,
+        "active_state": "active",
+        "sub_state": "running",
+        "pid": 1525,
+        "socket_exists": True,
+        "socket_path": "~/.hermes/gateway.sock",
+        "health": {"ok": True, "version": "0.23.3+1139", "auth_required": False},
+    })
+    res = json.loads(tools.status({}))
+    assert res["ok"] is True
+    assert res["hermes_gateway"]["up"] is True
+    assert res["hermes_gateway"]["port"] == 51234
+    assert res["hint"] is None
+
+
+def test_hermes_gateway_probe_offline_fallback(monkeypatch):
+    class _FailProc:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr(tools.subprocess, "run", lambda *a, **kw: _FailProc())
+    gw_off = tools._probe_hermes_gateway()
+    assert gw_off["unit"] == "hermes-gateway.service"
+    assert gw_off["port"] is None
+    assert gw_off["up"] is False
+    assert "/home/" not in json.dumps(gw_off)
+

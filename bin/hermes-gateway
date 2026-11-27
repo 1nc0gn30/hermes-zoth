@@ -1,0 +1,446 @@
+#!/usr/bin/env python3
+"""Portable, read-only-safe CLI wrapper for Hermes Agent Gateway (hermes-gateway.service).
+
+Zero literal home paths; strictly redacts user home directories and secret patterns
+from all JSON and human-readable telemetry output. Never reads ~/.hermes/.env,
+~/.hermes/auth.json, or ~/.hermes/config.yaml secret values, and never restarts
+or mutates a running gateway daemon during status/health/port/list/doctor checks.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+VERSION = "2.4.0"
+UNIT_NAME = "hermes-gateway.service"
+STATE_DB_WARN_BYTES = 1024 * 1024 * 1024  # 1 GiB
+MEMORY_HIGH_BYTES = 3 * 1024 * 1024 * 1024  # 3 GiB
+MEMORY_MAX_BYTES = 4 * 1024 * 1024 * 1024  # 4 GiB
+
+_HOME_PATH_RE = re.compile(r"(?:file://)?/(?:home|Users)/[A-Za-z0-9._-]+(?=/|\b)")
+_SECRET_PATTERNS = (
+    re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{16,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{16,}\b"),
+    re.compile(r"\bAIza[0-9A-Za-z_-]{20,}\b"),
+    re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b"),
+    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{12,}"),
+    re.compile(r"-----BEGIN [A-Z0-9 ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]+PRIVATE KEY-----"),
+)
+_SECRET_KEY_NAMES = frozenset({"token", "secret", "api_key", "apikey", "password", "authorization", "private_key", "env"})
+
+
+def _hermes_home() -> Path:
+    raw = os.environ.get("HERMES_HOME", "").strip()
+    if raw:
+        return Path(os.path.expanduser(os.path.expandvars(raw)))
+    return Path.home() / ".hermes"
+
+
+def redact_text(value: str) -> str:
+    text = _HOME_PATH_RE.sub("~", value)
+    for pat in _SECRET_PATTERNS:
+        text = pat.sub("[REDACTED]", text)
+    return text
+
+
+def redact_obj(value: Any) -> Any:
+    if isinstance(value, str):
+        return redact_text(value)
+    if isinstance(value, list):
+        return [redact_obj(v) for v in value]
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for k, v in value.items():
+            kl = str(k).lower()
+            if kl in _SECRET_KEY_NAMES:
+                out[k] = "[REDACTED]"
+            else:
+                out[k] = redact_obj(v)
+        return out
+    return value
+
+
+def resolve_hermes_binary() -> list[str] | None:
+    home = Path.home()
+    candidates: list[list[str]] = [
+        [str(home / ".hermes" / "hermes-agent" / ".hermes" / "bin" / "hermes")],
+        [
+            str(home / ".hermes" / "hermes-agent" / "venv" / "bin" / "python"),
+            str(home / ".hermes" / "hermes-agent" / "hermes"),
+        ],
+        ["/opt/zothos-ai-env/bin/hermes"],
+        [str(home / ".local" / "bin" / "hermes")],
+        ["/opt/hermes-agent/venv/bin/hermes"],
+    ]
+    for cmd in candidates:
+        exe = Path(cmd[0])
+        if exe.is_file() and os.access(exe, os.X_OK):
+            if len(cmd) == 1 or Path(cmd[1]).is_file():
+                return cmd
+    found = shutil.which("hermes")
+    if found and Path(found).resolve() != Path(__file__).resolve():
+        return [found]
+    return None
+
+
+def _run_readonly(cmd: list[str], timeout: float = 2.0) -> tuple[int, str]:
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        return proc.returncode, proc.stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return 1, ""
+
+
+def read_systemd_unit() -> dict[str, Any]:
+    props = (
+        "Id,ActiveState,SubState,UnitFileState,MainPID,TasksCurrent,"
+        "MemoryCurrent,MemoryPeak,ExecMainStartTimestamp,FragmentPath,"
+        "NoNewPrivileges,PrivateTmp,UMask,MemoryMax,MemoryHigh,CPUQuotaPerSecUSec"
+    )
+    rc, out = _run_readonly(["systemctl", "--user", "show", UNIT_NAME, "-p", props, "--no-pager"], timeout=2.0)
+    if rc != 0 or not out.strip():
+        return {"available": False, "unit": UNIT_NAME, "active": False, "activeState": "unavailable"}
+
+    kv: dict[str, str] = {}
+    for line in out.splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            kv[k.strip()] = v.strip()
+
+    def _to_int(key: str) -> int | None:
+        raw = kv.get(key, "")
+        if raw.isdigit():
+            val = int(raw)
+            if 0 <= val < 10**16:
+                return val
+        return None
+
+    pid = _to_int("MainPID")
+    if pid == 0:
+        pid = None
+    mem_cur = _to_int("MemoryCurrent")
+    mem_peak = _to_int("MemoryPeak")
+    tasks = _to_int("TasksCurrent")
+    active = kv.get("ActiveState") == "active"
+    return {
+        "available": True,
+        "unit": kv.get("Id") or UNIT_NAME,
+        "active": active,
+        "activeState": kv.get("ActiveState") or "unknown",
+        "subState": kv.get("SubState") or "unknown",
+        "unitFileState": kv.get("UnitFileState") or "unknown",
+        "pid": pid,
+        "tasks": tasks,
+        "startedAt": kv.get("ExecMainStartTimestamp") or None,
+        "memoryCurrentBytes": mem_cur,
+        "memoryPeakBytes": mem_peak,
+        "memoryCurrentMb": round(mem_cur / (1024 * 1024), 1) if mem_cur is not None else None,
+        "memoryPeakMb": round(mem_peak / (1024 * 1024), 1) if mem_peak is not None else None,
+        "fragmentPath": redact_text(kv.get("FragmentPath") or ""),
+        "hardening": {
+            "noNewPrivileges": kv.get("NoNewPrivileges") == "yes",
+            "privateTmp": kv.get("PrivateTmp") == "yes",
+            "umask": kv.get("UMask") or "",
+            "memoryMax": kv.get("MemoryMax") or "",
+        },
+    }
+
+
+def parse_loopback_port(ss_output: str, pid: int | None = None) -> int | None:
+    """Deterministically discover a 127.0.0.1 loopback TCP port owned by hermes/pid."""
+    pid_tag = f"pid={pid}" if pid else None
+    fallback_port: int | None = None
+    for line in ss_output.splitlines():
+        if "127.0.0.1:" not in line:
+            continue
+        m = re.search(r"\b127\.0\.0\.1:(\d{2,5})\b", line)
+        if not m:
+            continue
+        port = int(m.group(1))
+        if not (1024 <= port <= 65535):
+            continue
+        if pid_tag and pid_tag in line:
+            return port
+        if '"hermes"' in line and fallback_port is None:
+            fallback_port = port
+    return fallback_port
+
+
+def discover_loopback_port(pid: int | None = None) -> int | None:
+    rc, out = _run_readonly(["ss", "-tlnp"], timeout=2.0)
+    if rc == 0 and out:
+        port = parse_loopback_port(out, pid=pid)
+        if port is not None:
+            return port
+    return None
+
+
+def probe_loopback_json(port: int, endpoint: str, timeout: float = 1.5) -> dict[str, Any] | None:
+    if not (1024 <= port <= 65535) or not endpoint.startswith("/"):
+        return None
+    url = f"http://127.0.0.1:{port}{endpoint}"
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    req = urllib.request.Request(url, headers={"Accept": "application/json", "Host": f"127.0.0.1:{port}"})
+    try:
+        with opener.open(req, timeout=timeout) as resp:
+            raw = resp.read(128 * 1024).decode("utf-8", errors="replace")
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                return redact_obj(data)
+    except (OSError, urllib.error.URLError, ValueError):
+        return None
+    return None
+
+
+def read_safe_local_files() -> dict[str, Any]:
+    """Read strictly non-secret metadata from ~/.hermes (never reads .env/auth.json/config.yaml)."""
+    hdir = _hermes_home()
+    sock = hdir / "gateway.sock"
+    db = hdir / "state.db"
+    gs_path = hdir / "gateway_state.json"
+
+    state_db_bytes: int | None = None
+    try:
+        if db.exists():
+            state_db_bytes = db.stat().st_size
+    except OSError:
+        pass
+
+    socket_exists = False
+    try:
+        socket_exists = sock.exists()
+    except OSError:
+        pass
+
+    platforms: dict[str, Any] = {}
+    served_profiles: list[str] = []
+    if gs_path.is_file():
+        try:
+            gs = json.loads(gs_path.read_text(encoding="utf-8", errors="replace"))
+            if isinstance(gs, dict):
+                raw_plats = gs.get("platforms")
+                if isinstance(raw_plats, dict):
+                    for name, pdata in raw_plats.items():
+                        if isinstance(pdata, dict):
+                            platforms[str(name)] = {
+                                "state": str(pdata.get("state") or "unknown"),
+                                "errorCode": str(pdata.get("error_code") or "") or None,
+                                "updatedAt": str(pdata.get("updated_at") or "") or None,
+                            }
+                raw_profs = gs.get("served_profiles")
+                if isinstance(raw_profs, list):
+                    served_profiles = [str(x) for x in raw_profs if isinstance(x, str)]
+        except (OSError, ValueError):
+            pass
+
+    return {
+        "hermesHome": "~/.hermes",
+        "socketPath": "~/.hermes/gateway.sock",
+        "socketExists": socket_exists,
+        "stateDbPath": "~/.hermes/state.db",
+        "stateDbBytes": state_db_bytes,
+        "stateDbGb": round(state_db_bytes / (1024**3), 2) if state_db_bytes is not None else None,
+        "platforms": platforms,
+        "servedProfiles": served_profiles,
+    }
+
+
+def collect_status() -> dict[str, Any]:
+    systemd = read_systemd_unit()
+    pid = systemd.get("pid")
+    port = discover_loopback_port(pid=pid)
+    health = probe_loopback_json(port, "/api/health") if port else None
+    raw_status = probe_loopback_json(port, "/api/status") if port else None
+    local = read_safe_local_files()
+
+    profiles: list[str] = []
+    if isinstance(raw_status, dict) and isinstance(raw_status.get("gateway_shared_with"), list):
+        profiles = [str(p) for p in raw_status["gateway_shared_with"] if isinstance(p, str)]
+    elif local["servedProfiles"]:
+        profiles = list(local["servedProfiles"])
+
+    warnings: list[dict[str, str]] = []
+    state_db_bytes = local.get("stateDbBytes")
+    if isinstance(state_db_bytes, int) and state_db_bytes >= STATE_DB_WARN_BYTES:
+        gb = round(state_db_bytes / (1024**3), 2)
+        warnings.append({
+            "code": "STATE_DB_LARGE",
+            "severity": "warning",
+            "message": f"~/.hermes/state.db is {gb} GiB (>= 1.0 GiB); compact during maintenance window via `hermes sessions optimize-storage`.",
+        })
+
+    for pname, pinfo in (local.get("platforms") or {}).items():
+        if pinfo.get("state") == "fatal":
+            err_code = pinfo.get("errorCode") or "fatal"
+            warnings.append({
+                "code": f"PLATFORM_{pname.upper()}_FATAL",
+                "severity": "warning",
+                "message": f"gateway_state.json reports {pname} in fatal state ({err_code}); reconcile or clear stale platform state during maintenance window.",
+            })
+
+    mem_peak = systemd.get("memoryPeakBytes")
+    if isinstance(mem_peak, int) and mem_peak >= MEMORY_HIGH_BYTES:
+        gib = round(mem_peak / (1024**3), 2)
+        warnings.append({
+            "code": "CGROUP_MEMORY_PEAK_HIGH",
+            "severity": "info",
+            "message": f"Cgroup peak memory reached {gib} GiB (target MemoryHigh=3G / MemoryMax=4G in hardened ZothOS unit).",
+        })
+
+    hardening = systemd.get("hardening") or {}
+    if systemd.get("available") and (not hardening.get("noNewPrivileges") or not hardening.get("privateTmp")):
+        warnings.append({
+            "code": "UNIT_HARDENING_PENDING",
+            "severity": "info",
+            "message": "Live user unit predates hardened %h-portable ZothOS template (UMask=0077, NoNewPrivileges=yes, PrivateTmp=yes, MemoryMax=4G).",
+        })
+
+    return redact_obj({
+        "ok": bool(systemd.get("active") or (health and health.get("ok"))),
+        "wrapperVersion": VERSION,
+        "checkedAt": datetime.now(timezone.utc).isoformat(),
+        "readOnly": True,
+        "systemd": systemd,
+        "listener": {
+            "host": "127.0.0.1" if port else None,
+            "port": port,
+            "url": f"http://127.0.0.1:{port}" if port else None,
+            "healthUrl": f"http://127.0.0.1:{port}/api/health" if port else None,
+            "loopbackOnly": True,
+            "discovery": "ss-loopback-pid" if port else "none",
+        },
+        "health": health,
+        "gateway": {
+            "version": (health or {}).get("displayVersion") or (health or {}).get("version") or (raw_status or {}).get("version"),
+            "state": (raw_status or {}).get("gateway_state") or systemd.get("subState"),
+            "overall": (raw_status or {}).get("overall"),
+            "profiles": profiles,
+            "profileCount": len(profiles),
+            "socketExists": local["socketExists"],
+            "socketPath": local["socketPath"],
+            "stateDbBytes": local["stateDbBytes"],
+            "stateDbGb": local["stateDbGb"],
+            "platforms": local["platforms"],
+        },
+        "warnings": warnings,
+    })
+
+
+def print_help() -> None:
+    print(
+        f"""hermes-gateway {VERSION} — Portable Read-Only Telemetry & Passthrough Wrapper
+
+Usage:
+  hermes-gateway status [--json]   Inspect live hermes-gateway.service, discovered loopback port, profiles & warnings (read-only)
+  hermes-gateway health [--json]   Check redacted /api/health and systemd active state (read-only)
+  hermes-gateway port [--json]     Print dynamically discovered 127.0.0.1 loopback URL/port (read-only)
+  hermes-gateway list              Run read-only `hermes gateway list`
+  hermes-gateway doctor            Run read-only `hermes doctor`
+  hermes-gateway <subcommand>      Passthrough to `hermes gateway <subcommand>`
+  hermes-gateway --help | -h       Show this help text
+
+Security invariants:
+  - Strictly read-only on status/health/port/list/doctor; never restarts PID or reads secrets.
+  - Zero literal user home paths; all output paths are redacted to ~/.
+"""
+    )
+
+
+def main(argv: list[str]) -> int:
+    if not argv or argv[0] in ("-h", "--help", "help"):
+        print_help()
+        return 0
+
+    cmd = argv[0]
+    rest = argv[1:]
+    want_json = "--json" in rest
+
+    if cmd == "status":
+        data = collect_status()
+        if want_json:
+            print(json.dumps(data, indent=2))
+        else:
+            sd = data["systemd"]
+            gw = data["gateway"]
+            ls = data["listener"]
+            print(f"hermes-gateway ({UNIT_NAME})")
+            print(f"  State:      {sd.get('activeState')} ({sd.get('subState')}) | PID: {sd.get('pid')}")
+            print(f"  Listener:   {ls.get('url') or 'none'} (loopback-only, discovery={ls.get('discovery')})")
+            print(f"  Socket:     {gw.get('socketPath')} ({'present' if gw.get('socketExists') else 'missing'})")
+            print(f"  Memory:     {sd.get('memoryCurrentMb')} MiB current / {sd.get('memoryPeakMb')} MiB peak")
+            print(f"  Profiles:   {gw.get('profileCount')} ({', '.join(gw.get('profiles') or [])})")
+            print(f"  State DB:   {gw.get('stateDbGb')} GiB ({gw.get('stateDbBytes')} B)")
+            if data["warnings"]:
+                print("  Advisories:")
+                for w in data["warnings"]:
+                    print(f"    - [{w['severity'].upper()}] {w['code']}: {w['message']}")
+        return 0
+
+    if cmd == "port":
+        sd = read_systemd_unit()
+        port = discover_loopback_port(pid=sd.get("pid"))
+        payload = {
+            "ok": port is not None,
+            "host": "127.0.0.1" if port else None,
+            "port": port,
+            "url": f"http://127.0.0.1:{port}" if port else None,
+            "pid": sd.get("pid"),
+        }
+        if want_json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print(payload["url"] if payload["url"] else "null")
+        return 0
+
+    if cmd == "health":
+        sd = read_systemd_unit()
+        port = discover_loopback_port(pid=sd.get("pid"))
+        health = probe_loopback_json(port, "/api/health") if port else None
+        payload = redact_obj({
+            "ok": bool(sd.get("active") and (health is None or health.get("ok"))),
+            "systemdActive": bool(sd.get("active")),
+            "activeState": sd.get("activeState"),
+            "pid": sd.get("pid"),
+            "port": port,
+            "health": health,
+        })
+        if want_json:
+            print(json.dumps(payload, indent=2))
+        else:
+            ver = (health or {}).get("displayVersion") or (health or {}).get("version") or "unknown"
+            print(f"ok={payload['ok']} active={payload['systemdActive']} pid={payload['pid']} port={payload['port']} version={ver}")
+        return 0
+
+    hermes_cmd = resolve_hermes_binary()
+    if not hermes_cmd:
+        sys.stderr.write("hermes-gateway: unable to locate hermes executable.\n")
+        return 127
+
+    if cmd == "doctor":
+        os.execvp(hermes_cmd[0], [*hermes_cmd, "doctor", *rest])
+    if cmd == "list":
+        os.execvp(hermes_cmd[0], [*hermes_cmd, "gateway", "list", *rest])
+
+    os.execvp(hermes_cmd[0], [*hermes_cmd, "gateway", cmd, *rest])
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

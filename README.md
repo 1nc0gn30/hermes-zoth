@@ -27,7 +27,7 @@ Requirements:
 | --- | --- | --- |
 | `zoth_studio_search` | Search the 85-tool catalog by keywords, category (exact or family prefix like `security`), or `execution_type` (`browser`, `local_cli`, `webgpu`, `hybrid`). Returns ranked results with `version`, `execution_type`, `local_port`, `studio_url`, and GitHub source flags. | none (bundled catalog) |
 | `zoth_studio_tool` | Look up one tool by id or friendly name. Returns `studio_url`, `github`, `execution_type`, `local_port`, `pull_command`, and source flags. `check_live: true` checks HTTP status of the Studio page. | optional HTTPS GET to `zoth.nullai.tech` |
-| `zoth_status` | Probe local ZOTHOS / Zoth services in parallel: Studio UI (`:3000`), Neuro memory daemon (`:8094`), agent/security suite (`:8095-8106`, including Sovereign Agent Bridge `:8102`), Chronicle memory vault (`:8161`), Zoth Bot OS (`:8190`), Vault daemon (`:8787`), WebGen (`:5173`), and Ollama (`:11434`, with installed model names). | `127.0.0.1` only (no proxies, no redirects) |
+| `zoth_status` | Probe local ZOTHOS / Zoth services in parallel: Studio UI (`:3000`), Neuro memory daemon (`:8094`), agent/security suite (`:8095-8106`, including Sovereign Agent Bridge `:8102`), Chronicle memory vault (`:8161`), Zoth Bot OS (`:8190`), Vault daemon (`:8787`), WebGen (`:5173`), Ollama (`:11434`, with installed model names), and a read-only `hermes-gateway.service` telemetry probe (dynamic loopback port + redacted `/api/health` + `~/.hermes/gateway.sock`). | `127.0.0.1` only (no proxies, no redirects) |
 | `zoth_pull_tool` | Shallow-clone one published `NullAITech`/`1nc0gn30` repo into `<HERMES_HOME>/plugin-data/zoth/<dest_dir>/<repo>` (default `tools`), or fast-forward update an existing checkout. Optional `ref` pins a branch, tag, or 40-char SHA. | `github.com` via `git` |
 | `zoth_bridge_post` | POST a structured JSON broadcast (`content` + `metadata`: `sender`, `recipient`, `topic`) to the local Sovereign Agent Bridge (`http://127.0.0.1:8102/api/broadcast` or `ZOTH_BRIDGE_URL`). | loopback only (no proxies, no redirects) |
 | `zoth_ecosystem_targets` | Inspect the 6 Zoth/NullAI products (`zothos`, `zothos-lite`, `zothnet`, `zoth-studio`, `1nc0gn30`, `nullai`), resolving local workspace paths under `ZOTH_WORKSPACE_ROOT` (default `~/NullAITech`) and checking `robots.txt`, `sitemap.xml`, and `llms.txt`. | none (local filesystem) |
@@ -173,7 +173,25 @@ The sync script keeps only public fields (`id`, `name`, `category`, `description
 - **Filesystem boundaries:** `zoth_pull_tool` writes only inside `<HERMES_HOME>/plugin-data/zoth/`. Relative `dest_dir` resolves against that root, never process cwd. Absolute paths, `..`, and symlinks resolving outside that root (including `~/.hermes/skills` and `~/.hermes/plugins`) are refused with `dest_outside_root`. Existing non-git directories and mismatched git remotes are never overwritten.
 - **Git hardening:** fixed argv (no shell), `--` before URLs, strict ref validation, minimal environment (shell tokens and `GIT_*` overrides stripped, `GIT_TERMINAL_PROMPT=0`, `GIT_CONFIG_NOSYSTEM=1`), `core.hooksPath=/dev/null`, `core.fsmonitor=false`, `protocol.file.allow=never`, `protocol.ext.allow=never`, `submodule.recurse=false`, 180 s timeout.
 
+## Portable `hermes-gateway` CLI Wrapper (`bin/hermes-gateway`)
+
+This repository also ships the portable, zero-literal-home-path `bin/hermes-gateway` read-only telemetry and passthrough wrapper (installed in ZothOS at `/usr/local/bin/hermes-gateway` and `~/.local/bin/hermes-gateway`):
+
+```bash
+hermes-gateway status --json   # Read-only systemd + dynamic loopback port + profiles + advisories (0 /home/ leaks)
+hermes-gateway health --json   # Redacted /api/health + systemd active state
+hermes-gateway port --json     # Dynamically discovered 127.0.0.1 loopback port (never hardcoded)
+hermes-gateway list            # Read-only passthrough to `hermes gateway list`
+hermes-gateway doctor          # Read-only passthrough to `hermes doctor`
+```
+
 ## Changelog
+
+### 1.4.0
+
+- Added read-only `hermes_gateway` telemetry probe (`systemctl --user`, dynamic `ss -tlnp` loopback port discovery, redacted `/api/health`, and `~/.hermes/gateway.sock` presence) to `zoth_status`.
+- Added portable `bin/hermes-gateway` CLI wrapper with strict home-path and secret redaction and zero live-daemon mutations.
+- Aligned catalog counts to **85 open-access tools** across documentation and standardized Neal Frazier Tech / NullAI Platform attribution.
 
 ### 1.3.0
 
@@ -187,7 +205,7 @@ The sync script keeps only public fields (`id`, `name`, `category`, `description
 ### 1.2.0
 
 - Added `zoth_bridge_post` (`http://127.0.0.1:8102/api/broadcast`), `zoth_ecosystem_targets`, and `zoth_growth_directories`.
-- Synced catalog to 83 tools and aligned attribution to `1nc0gn30 (Zoth Studio)`.
+- Synced catalog (now **85 tools**) and aligned attribution to `1nc0gn30 (Zoth Studio)`.
 
 ### 1.1.4
 
@@ -207,6 +225,8 @@ hermes plugins validate . --install-deps
 hermes plugins doctor . --ci
 ```
 
-## License
+## License & Attribution
 
-MIT © 2026 1nc0gn30
+MIT © 2026 Neal Frazier Tech
+
+Engineered by Neal Frazier Tech (@1nc0gn30) • NullAI Platform · [github.com/1nc0gn30/hermes-zoth](https://github.com/1nc0gn30/hermes-zoth) · [nullai.tech](https://nullai.tech)

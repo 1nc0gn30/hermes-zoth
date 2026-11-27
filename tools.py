@@ -369,12 +369,133 @@ def _probe(port: int, path: str):
         return True, None
 
 
-def status(args: dict, **kwargs) -> str:
-    """Check which local ZOTHOS / Zoth Studio loopback services and Ollama models are reachable."""
+_HOME_PATH_RE = re.compile(r"(?:file://)?/(?:home|Users)/[A-Za-z0-9._-]+(?=/|\b)")
+_HERMES_SECRET_RES = (
+    re.compile(r"\bsk-[A-Za-z0-9_-]{12,}\b"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{16,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{16,}\b"),
+    re.compile(r"\bAIza[0-9A-Za-z_-]{20,}\b"),
+    re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b"),
+    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{12,}"),
+)
+
+
+def _redact_hermes_value(value):
+    if isinstance(value, str):
+        out = _HOME_PATH_RE.sub("~", value)
+        for pat in _HERMES_SECRET_RES:
+            out = pat.sub("[REDACTED]", out)
+        return out
+    if isinstance(value, list):
+        return [_redact_hermes_value(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _redact_hermes_value(v) for k, v in value.items()}
+    return value
+
+
+def _parse_hermes_loopback_port(ss_output: str, pid: int | None = None) -> int | None:
+    """Discover a 127.0.0.1 loopback TCP port owned by hermes-gateway (never 0.0.0.0)."""
+    if not ss_output:
+        return None
+    pid_tag = f"pid={pid}" if pid else None
+    fallback = None
+    for line in ss_output.splitlines():
+        if "127.0.0.1:" not in line:
+            continue
+        tokens = line.strip().split()
+        local_addr = next((tok for tok in tokens if ":" in tok and not tok.startswith("users:")), None)
+        if local_addr and not local_addr.startswith("127.0.0.1:"):
+            continue
+        m = re.search(r"\b127\.0\.0\.1:(\d{2,5})\b", line)
+        if not m:
+            continue
+        port = int(m.group(1))
+        if not (1024 <= port <= 65535):
+            continue
+        if pid_tag and pid_tag in line:
+            return port
+        if '"hermes"' in line and fallback is None:
+            fallback = port
+    return fallback
+
+
+def _probe_hermes_gateway() -> dict:
+    """Read-only probe of hermes-gateway.service, dynamic loopback port & /api/health."""
+    unit = "hermes-gateway.service"
+    systemd_active = False
+    active_state = "unavailable"
+    sub_state = "unknown"
+    pid = None
     try:
-        pool = ThreadPoolExecutor(max_workers=max(1, len(SERVICES)))
+        proc = subprocess.run(
+            ["systemctl", "--user", "show", unit, "-p", "ActiveState,SubState,MainPID", "--no-pager"],
+            capture_output=True,
+            text=True,
+            timeout=1.5,
+            check=False,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            kv = {}
+            for line in proc.stdout.splitlines():
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    kv[k.strip()] = v.strip()
+            active_state = kv.get("ActiveState") or "unknown"
+            sub_state = kv.get("SubState") or "unknown"
+            systemd_active = active_state == "active"
+            raw_pid = kv.get("MainPID", "")
+            if raw_pid.isdigit() and int(raw_pid) > 0:
+                pid = int(raw_pid)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    port = None
+    try:
+        ss_proc = subprocess.run(["ss", "-tlnp"], capture_output=True, text=True, timeout=1.5, check=False)
+        if ss_proc.returncode == 0 and ss_proc.stdout:
+            port = _parse_hermes_loopback_port(ss_proc.stdout, pid=pid)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    health = None
+    health_up = False
+    if port is not None:
+        up, body = _probe(port, "/api/health")
+        health_up = bool(up)
+        if isinstance(body, dict):
+            health = _redact_hermes_value({
+                "ok": bool(body.get("ok")),
+                "version": body.get("displayVersion") or body.get("version"),
+                "auth_required": body.get("auth_required"),
+            })
+
+    socket_exists = False
+    try:
+        socket_exists = (_fallback_hermes_home() / "gateway.sock").exists()
+    except OSError:
+        pass
+
+    return _redact_hermes_value({
+        "name": "Hermes Agent Gateway",
+        "unit": unit,
+        "port": port,
+        "up": bool(systemd_active or health_up),
+        "active_state": active_state,
+        "sub_state": sub_state,
+        "pid": pid,
+        "socket_exists": socket_exists,
+        "socket_path": "~/.hermes/gateway.sock",
+        "health": health,
+    })
+
+
+def status(args: dict, **kwargs) -> str:
+    """Probe local ZOTHOS / Zoth loopback services in parallel (4 s total budget)."""
+    try:
+        pool = ThreadPoolExecutor(max_workers=len(SERVICES) + 1)
         futures = [pool.submit(_probe, port, path) for _, port, path in SERVICES]
-        wait(futures, timeout=STATUS_TOTAL_TIMEOUT)
+        gw_future = pool.submit(_probe_hermes_gateway)
+        wait([*futures, gw_future], timeout=STATUS_TOTAL_TIMEOUT)
         pool.shutdown(wait=False, cancel_futures=True)
         rows = []
         for (name, port, _), f in zip(SERVICES, futures):
@@ -387,13 +508,27 @@ def status(args: dict, **kwargs) -> str:
             if name == "Ollama" and up and isinstance(body, dict):
                 row["models"] = [m.get("name") for m in body.get("models", []) if isinstance(m, dict)]
             rows.append(row)
+        if gw_future.done() and not gw_future.cancelled() and gw_future.exception() is None:
+            hermes_gw = gw_future.result()
+        else:
+            hermes_gw = {
+                "name": "Hermes Agent Gateway",
+                "unit": "hermes-gateway.service",
+                "port": None,
+                "up": False,
+                "timed_out": True,
+                "socket_path": "~/.hermes/gateway.sock",
+                "socket_exists": False,
+                "health": None,
+            }
         return json.dumps({
             "ok": True,
             "host": "127.0.0.1",
             "up": sum(r["up"] for r in rows),
             "services": rows,
+            "hermes_gateway": hermes_gw,
             "kvm": Path("/dev/kvm").exists(),
-            "hint": None if any(r["up"] for r in rows) else
+            "hint": None if (any(r["up"] for r in rows) or hermes_gw.get("up")) else
             "Nothing is running. Start Zoth Studio with `npx @nullaitech/zoth studio`.",
         })
     except Exception as e:  # noqa: BLE001
