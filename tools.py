@@ -40,6 +40,7 @@ SERVICES = [
     ("Chronicle memory vault", 8161, "/health"),
     ("Zoth Bot OS", 8190, "/health"),
     ("Vault daemon", 8787, "/health"),
+    ("Konsole relay (KDE D-Bus)", 8797, "/health"),
     ("Zoth WebGen (Bolt.DIY)", 5173, "/"),
     ("Ollama", 11434, "/api/tags"),
 ]
